@@ -344,66 +344,87 @@ function drawChart(r){
   $("chartNote").textContent=r.rev?`At ${hrs(S.hours)} contracted hours/week, the consultant can work up to ${hrs(r.maxH)} hours/week before this client drops below your ${pct(S.target)} target.`:"Enter hours inside a tier to see the curve.";
 }
 
-function renderCmp(){
-  const focusId=document.activeElement&&document.activeElement.id;
-  $("defCost").textContent=usd(S.cost,2);
-  $("cmp").innerHTML=`<thead><tr><th>Weekly hrs</th><th>1099 $/hr</th><th>Tier</th><th>Client $/hr</th><th>Revenue /mo</th><th>1099 cost /mo</th><th>Overhead /mo</th><th>Contribution /mo</th><th>Margin</th><th>Floor rate</th><th>Meets ${pct(S.target)}?</th><th></th></tr></thead><tbody>`+
-  S.cmp.map((row,i)=>{
-    const h=+row.hours||0, cost=row.cost===""||row.cost==null?S.cost:+row.cost, rov=row.rate==null?"":row.rate, r=calc(h,cost,S.util,rov);
-    const tierRate=r.tier?r.tier.rate:"";
-    return `<tr class="${h===S.hours&&row.cost===""&&rov===""?'sel':''}">
+/* Tables: inputs are built once (only when rows are added/removed), results update in place,
+   so typing never redraws the box you're typing in. */
+const pillTier=(r,rov)=>rov!==""?'<span class="pill neutral">Custom</span>':r.tier?r.tier.name:'<span class="pill bad">Out of range</span>';
+const set=(id,html)=>{const el=$(id);if(el&&el.innerHTML!==html)el.innerHTML=html};
+
+function buildCmp(){
+  $("cmp").innerHTML=`<thead><tr><th>Weekly hrs</th><th>1099 $/hr</th><th>Tier</th><th>Client $/hr</th><th>Revenue /mo</th><th>1099 cost /mo</th><th>Overhead /mo</th><th>Contribution /mo</th><th>Margin</th><th>Floor rate</th><th id="cmp-th-meets"></th><th></th></tr></thead><tbody>`+
+  S.cmp.map((row,i)=>`<tr id="cmp-row-${i}">
     <td><input class="cell" style="width:70px" id="cmp-hours-${i}" type="number" step="0.5" value="${row.hours}" aria-label="Weekly hours, row ${i+1}"></td>
-    <td><input class="cell" style="width:80px" id="cmp-cost-${i}" type="number" value="${row.cost}" placeholder="${S.cost}" aria-label="1099 cost, row ${i+1}"></td>
-    <td>${rov!==""?'<span class="pill neutral">Custom</span>':r.tier?r.tier.name:'<span class="pill bad">Out of range</span>'}</td>
-    <td><input class="cell" style="width:80px" id="cmp-rate-${i}" type="number" value="${rov}" placeholder="${tierRate}" aria-label="Client rate, row ${i+1}"></td>
-    <td class="num">${usd(r.rev)}</td><td class="num">${usd(r.costM)}</td><td class="num">${usd(r.ovhM)}</td>
-    <td class="num">${usd(r.contrib)}</td><td class="num">${pct(r.margin)}</td><td class="num">${usd(r.floor,2)}</td>
-    <td>${!r.rev?'–':r.meets?'<span class="pill good">Yes</span>':'<span class="pill bad">No</span>'}</td>
-    <td><button class="x" data-cdel="${i}" aria-label="Remove row ${i+1}">×</button></td></tr>`}).join("")+`</tbody>`;
+    <td><input class="cell" style="width:80px" id="cmp-cost-${i}" type="number" value="${row.cost??""}" aria-label="1099 cost, row ${i+1}"></td>
+    <td id="cmp-tier-${i}"></td>
+    <td><input class="cell" style="width:80px" id="cmp-rate-${i}" type="number" value="${row.rate??""}" aria-label="Client rate, row ${i+1}"></td>
+    ${["rev","costm","ovh","con","mar","floor"].map(k=>`<td class="num" id="cmp-${k}-${i}"></td>`).join("")}
+    <td id="cmp-meets-${i}"></td>
+    <td><button class="x" data-cdel="${i}" aria-label="Remove row ${i+1}">×</button></td></tr>`).join("")+`</tbody>`;
   $("cmp").querySelectorAll("input").forEach(inp=>inp.addEventListener("input",()=>{
     const [_,f,i]=inp.id.split("-"); S.cmp[i][f]=inp.value===""?"":parseFloat(inp.value); update();
   }));
-  $("cmp").querySelectorAll("[data-cdel]").forEach(b=>b.addEventListener("click",()=>{S.cmp.splice(+b.dataset.cdel,1);update()}));
-  if(focusId&&focusId.startsWith("cmp-")&&$(focusId)) $(focusId).focus();
+  $("cmp").querySelectorAll("[data-cdel]").forEach(b=>b.addEventListener("click",()=>{S.cmp.splice(+b.dataset.cdel,1);buildCmp();update()}));
+  $("cmp").dataset.n=S.cmp.length;
+}
+function renderCmp(){
+  if(+$("cmp").dataset.n!==S.cmp.length||!$("cmp").dataset.n) buildCmp();
+  $("defCost").textContent=usd(S.cost,2);
+  set("cmp-th-meets",`Meets ${pct(S.target)}?`);
+  S.cmp.forEach((row,i)=>{
+    const h=+row.hours||0, cost=row.cost===""||row.cost==null?S.cost:+row.cost, rov=row.rate==null?"":row.rate, r=calc(h,cost,S.util,rov);
+    $("cmp-cost-"+i).placeholder=S.cost;
+    $("cmp-rate-"+i).placeholder=r.tier?r.tier.rate:"";
+    $("cmp-row-"+i).className=h===S.hours&&(row.cost===""||row.cost==null)&&rov===""?"sel":"";
+    set("cmp-tier-"+i,pillTier(r,rov));
+    set("cmp-rev-"+i,usd(r.rev)); set("cmp-costm-"+i,usd(r.costM)); set("cmp-ovh-"+i,usd(r.ovhM));
+    set("cmp-con-"+i,usd(r.contrib)); set("cmp-mar-"+i,pct(r.margin)); set("cmp-floor-"+i,usd(r.floor,2));
+    set("cmp-meets-"+i,!r.rev?'–':r.meets?'<span class="pill good">Yes</span>':'<span class="pill bad">No</span>');
+  });
 }
 
+function buildPort(){
+  $("port").innerHTML=`<thead><tr><th>Client</th><th>Weekly hrs</th><th>1099 $/hr</th><th>Tier</th><th>Rate</th><th>Subscription /mo</th><th>Contribution /mo</th><th>Margin</th><th>Status</th><th></th></tr></thead><tbody>`+
+    S.clients.map((c,i)=>`<tr>
+      <td><input class="cell name" id="c-name-${i}" value="${(c.name||"").replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}" aria-label="Client name"></td>
+      <td><input class="cell" style="width:70px" id="c-hours-${i}" type="number" step="0.5" value="${c.hours}" aria-label="Weekly hours"></td>
+      <td><input class="cell" style="width:80px" id="c-cost-${i}" type="number" value="${c.cost??""}" aria-label="1099 cost"></td>
+      <td id="c-tier-${i}"></td>
+      ${["rate","rev","con","mar"].map(k=>`<td class="num" id="c-${k}-${i}"></td>`).join("")}
+      <td id="c-stat-${i}"></td>
+      <td><button class="x" data-del="${i}" aria-label="Remove client">×</button></td></tr>`).join("")+
+    `<tr class="total"><td>Portfolio total</td><td class="num" id="pt-h"></td><td></td><td></td><td></td><td class="num" id="pt-rev"></td><td class="num" id="pt-con"></td><td class="num" id="pt-mar"></td><td id="pt-stat"></td><td></td></tr></tbody>`;
+  $("port").querySelectorAll("input").forEach(inp=>inp.addEventListener("input",()=>{
+    const [_,f,i]=inp.id.split("-"); S.clients[i][f]=f==="name"?inp.value:(inp.value===""?"":parseFloat(inp.value)); update();
+  }));
+  $("port").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{S.clients.splice(+b.dataset.del,1);buildPort();update()}));
+  $("port").dataset.n=S.clients.length;
+}
 function renderPort(){
-  const rows=S.clients.map((c,i)=>{
+  if(+$("port").dataset.n!==S.clients.length||!$("port").dataset.n) buildPort();
+  let tot={h:0,rev:0,con:0};
+  S.clients.forEach((c,i)=>{
     const cost=c.cost===""||c.cost==null?S.cost:+c.cost, r=calc(+c.hours||0,cost);
     const rev=r.quote, contrib=rev-r.costM-r.ovhM, m=rev?contrib/rev:0;
-    return {c,i,r,rev,contrib,m,cost};
+    tot.h+=+c.hours||0; tot.rev+=rev; tot.con+=contrib;
+    $("c-cost-"+i).placeholder=S.cost;
+    set("c-tier-"+i,r.tier?r.tier.name:'<span class="pill bad">Fix hours</span>');
+    set("c-rate-"+i,usd(r.rate)); set("c-rev-"+i,usd(rev)); set("c-con-"+i,usd(contrib)); set("c-mar-"+i,pct(m));
+    set("c-stat-"+i,!rev?'–':m>=S.target-1e-9?'<span class="pill good">Meets</span>':'<span class="pill bad">Below</span>');
   });
-  const focusId=document.activeElement&&document.activeElement.id;
-  $("port").innerHTML=`<thead><tr><th>Client</th><th>Weekly hrs</th><th>1099 $/hr</th><th>Tier</th><th>Rate</th><th>Subscription /mo</th><th>Contribution /mo</th><th>Margin</th><th>Status</th><th></th></tr></thead><tbody>`+
-    rows.map(({c,i,r,rev,contrib,m})=>`<tr>
-      <td><input class="cell name" id="c-name-${i}" value="${(c.name||"").replace(/"/g,'&quot;')}" aria-label="Client name"></td>
-      <td><input class="cell" style="width:70px" id="c-hours-${i}" type="number" step="0.5" value="${c.hours}" aria-label="Weekly hours"></td>
-      <td><input class="cell" style="width:80px" id="c-cost-${i}" type="number" value="${c.cost}" placeholder="${S.cost}" aria-label="1099 cost"></td>
-      <td>${r.tier?r.tier.name:'<span class="pill bad">Fix hours</span>'}</td>
-      <td class="num">${usd(r.rate)}</td><td class="num">${usd(rev)}</td><td class="num">${usd(contrib)}</td><td class="num">${pct(m)}</td>
-      <td>${!rev?'–':m>=S.target-1e-9?'<span class="pill good">Meets</span>':'<span class="pill bad">Below</span>'}</td>
-      <td><button class="x" data-del="${i}" aria-label="Remove ${c.name}">×</button></td></tr>`).join("");
-  const tot=rows.reduce((a,x)=>({h:a.h+(+x.c.hours||0),rev:a.rev+x.rev,con:a.con+x.contrib}),{h:0,rev:0,con:0});
   const tm=tot.rev?tot.con/tot.rev:0;
-  $("port").innerHTML+=`<tr class="total"><td>Portfolio total</td><td class="num">${hrs(tot.h)}</td><td></td><td></td><td></td><td class="num">${usd(tot.rev)}</td><td class="num">${usd(tot.con)}</td><td class="num">${pct(tm)}</td><td>${tot.rev?(tm>=S.target?'<span class="pill good">Meets</span>':'<span class="pill bad">Below</span>'):''}</td><td></td></tr></tbody>`;
+  set("pt-h",hrs(tot.h)); set("pt-rev",usd(tot.rev)); set("pt-con",usd(tot.con)); set("pt-mar",pct(tm));
+  set("pt-stat",tot.rev?(tm>=S.target?'<span class="pill good">Meets</span>':'<span class="pill bad">Below</span>'):'');
   $("portKpis").innerHTML=[
-    ["Active clients",rows.length],["Annual recurring revenue",usd(tot.rev*12)],
+    ["Active clients",S.clients.length],["Annual recurring revenue",usd(tot.rev*12)],
     ["Annual contribution",usd(tot.con*12)],["Consultants needed (40 hrs/wk)",(tot.h*S.util/40).toFixed(2)]
   ].map(([a,b])=>`<div class="stat"><div class="lab">${a}</div><div class="val">${b}</div></div>`).join("");
-  $("port").querySelectorAll("input").forEach(inp=>inp.addEventListener("input",()=>{
-    const [_,f,i]=inp.id.split("-"); S.clients[i][f]=f==="name"?inp.value:(inp.value===""?"":parseFloat(inp.value));
-    update(true);
-  }));
-  $("port").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{S.clients.splice(+b.dataset.del,1);update(true)}));
-  if(focusId&&$(focusId)){const el=$(focusId);el.focus();try{const n=el.value.length;if(el.type==="text")el.setSelectionRange(n,n)}catch(e){}}
 }
 
 function update(){save();render()}
 
 $("addClient").addEventListener("click",()=>{S.clients.push({name:"New client",hours:20,cost:""});update();const i=S.clients.length-1;$("c-name-"+i).focus();$("c-name-"+i).select()});
 $("addRow").addEventListener("click",()=>{const last=S.cmp[S.cmp.length-1];S.cmp.push({hours:last?Math.min((+last.hours||0)+5,40):20,cost:"",rate:""});update();$("cmp-hours-"+(S.cmp.length-1)).focus()});
-$("resetRows").addEventListener("click",()=>{S.cmp=JSON.parse(JSON.stringify(DEFAULTS.cmp));update()});
-$("clearClients").addEventListener("click",()=>{S.clients=[];update()});
+$("resetRows").addEventListener("click",()=>{S.cmp=JSON.parse(JSON.stringify(DEFAULTS.cmp));buildCmp();update()});
+$("clearClients").addEventListener("click",()=>{S.clients=[];buildPort();update()});
 $("reset").addEventListener("click",()=>{const c=S.clients;const rows=S.cmp;S=JSON.parse(JSON.stringify(DEFAULTS));S.clients=c;S.cmp=rows;syncInputs();buildTiers();update()});
 
 document.querySelectorAll("nav.tabs button").forEach(b=>b.addEventListener("click",()=>show(b.dataset.view)));
