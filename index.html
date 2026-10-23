@@ -13,7 +13,7 @@
   --bg:#eef2f6; --surface:#ffffff; --surface-2:#f6f8fb; --ink:#13233a; --muted:#5a6a7f; --line:#dbe3ec;
   --navy:#173453; --navy-2:#24507d; --on-navy:#ffffff;
   --input:#fff6d1; --input-line:#e2c45a; --accent:#b97f00; --accent-soft:#fbefc9;
-  --keep:#2f7a3a;
+  --keep:#2f7a3a; --slider:#5aaee8;
   --good:#256b2f; --good-bg:#e1f1df; --bad:#a3221d; --bad-bg:#fbe4e2; --warn:#8a5a00; --warn-bg:#fdf0d2;
   --sel:#fbf1d6; --grid:#e4eaf1; --shadow:0 1px 2px rgba(19,35,58,.06),0 4px 14px rgba(19,35,58,.05);
   --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
@@ -23,14 +23,14 @@
   --bg:#0c141f; --surface:#132031; --surface-2:#182839; --ink:#e7eef6; --muted:#97a7bb; --line:#26384d;
   --navy:#1c3f66; --navy-2:#5b8fc7; --on-navy:#ffffff;
   --input:#2e2914; --input-line:#7d6a24; --accent:#f0bf45; --accent-soft:#3a3115;
-  --keep:#6cc27a;
+  --keep:#6cc27a; --slider:#7cc4f2;
   --good:#8fd59a; --good-bg:#18301d; --bad:#ff9d96; --bad-bg:#3a1b1a; --warn:#f3c56a; --warn-bg:#352a12;
   --sel:#2a2715; --grid:#22344a; --shadow:none; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0c141f; --surface:#132031; --surface-2:#182839; --ink:#e7eef6; --muted:#97a7bb; --line:#26384d;
   --navy:#1c3f66; --navy-2:#5b8fc7; --on-navy:#ffffff;
   --input:#2e2914; --input-line:#7d6a24; --accent:#f0bf45; --accent-soft:#3a3115;
-  --keep:#6cc27a;
+  --keep:#6cc27a; --slider:#7cc4f2;
   --good:#8fd59a; --good-bg:#18301d; --bad:#ff9d96; --bad-bg:#3a1b1a; --warn:#f3c56a; --warn-bg:#352a12;
   --sel:#2a2715; --grid:#22344a; --shadow:none; color-scheme:dark}
 
@@ -81,7 +81,7 @@ button{font-family:inherit}
 .ig span{color:var(--muted);font-size:13.5px;font-weight:600}
 .ig input{border:0;background:transparent;color:var(--ink);font:600 15px var(--f-body);font-variant-numeric:tabular-nums;width:100%;min-width:0;text-align:right;padding:7px 4px;outline:none}
 input[type=number]{-moz-appearance:textfield}
-input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+input[type=range]{width:100%;accent-color:var(--slider);margin:0}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{font:600 12.5px var(--f-body);border:1px solid var(--line);background:var(--surface-2);color:var(--ink);padding:4px 10px;border-radius:999px;cursor:pointer}
 .chip:hover{border-color:var(--accent)}
