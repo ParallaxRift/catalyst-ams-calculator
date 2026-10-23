@@ -204,6 +204,7 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
 
   <nav class="tabs" role="tablist" aria-label="Views">
     <button role="tab" id="tab-calc" aria-selected="true" data-view="calc" type="button">Calculator</button>
+    <button role="tab" id="tab-pnl" aria-selected="false" data-view="pnl" type="button">Monthly P&amp;L</button>
     <button role="tab" id="tab-tiers" aria-selected="false" data-view="tiers" type="button">Tiers &amp; scenarios</button>
     <button role="tab" id="tab-portfolio" aria-selected="false" data-view="portfolio" type="button">Client portfolio</button>
   </nav>
@@ -241,7 +242,7 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
               <span><i style="background:#8fb2d9"></i>Consultant <b id="lg-cost"></b></span>
               <span><i style="background:#c9d8e8"></i>Overhead <b id="lg-ovh"></b></span>
               <span><i style="background:#7fd08c"></i>You keep <b id="lg-keep"></b></span>
-              <span><i style="background:#f0bf45;width:3px"></i>Target line</span>
+              <span><i style="background:#f0bf45;width:3px"></i>Target line <b id="lg-tgt"></b></span>
             </div>
           </div>
         </div>
@@ -263,11 +264,15 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
           <p class="note" id="chartNote"></p>
         </div>
 
-        <div class="card">
-          <div class="card-head"><h2>Monthly P&amp;L</h2></div>
-          <div class="scroll"><table class="pl" id="pl"></table></div>
-        </div>
       </div>
+    </div>
+  </section>
+
+  <section id="view-pnl" class="stack" role="tabpanel" aria-labelledby="tab-pnl" hidden>
+    <div class="card" style="max-width:760px">
+      <div class="card-head"><h2>Monthly P&amp;L</h2><button class="link" type="button" data-goto="calc">Change the deal</button></div>
+      <p class="note" id="pnlDeal" style="margin:0 0 12px"></p>
+      <div class="scroll"><table class="pl" id="pl"></table></div>
     </div>
   </section>
 
@@ -328,6 +333,7 @@ const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 const $=id=>document.getElementById(id);
 const usd=(v,d=0)=>(v<0?"−":"")+"$"+Math.abs(v).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
 const pct=v=>(v*100).toFixed(1)+"%";
+const pctT=v=>+(v*100).toFixed(1)+"%";
 const hrs=v=>(Math.round(v*10)/10).toLocaleString("en-US",{maximumFractionDigits:1});
 const blank=v=>v===""||v==null;
 const set=(id,html)=>{const el=$(id);if(el&&el.innerHTML!==String(html))el.innerHTML=html};
@@ -361,8 +367,10 @@ const GROUPS=[
     {k:"cost",label:"1099 consultant cost",help:"What you pay the contractor per hour worked.",min:50,max:200,step:1,pre:"$",suf:"/hr"},
     {k:"ovh",label:"Overhead per hour",help:"Tools, insurance, admin per hour delivered. $0 to ignore.",min:0,max:50,step:1,pre:"$",suf:"/hr"}
   ]},
+  {title:"Margins",fields:[
+    {k:"target",label:"Target margin",help:"The minimum share of revenue you want to keep. Pick one or type your own.",min:0,max:0.7,step:0.01,pct:true,suf:"%",chips:[0.25,0.30,0.35,0.40]}
+  ]},
   {title:"Pricing rules",fields:[
-    {k:"target",label:"Target margin",help:"The minimum share of revenue you want to keep.",min:0,max:0.7,step:0.01,pct:true,suf:"%"},
     {k:"weeks",label:"Billable weeks per year",help:"52 = bill every week. About 48 if you pause for holidays.",min:40,max:52,step:1,suf:"wks"},
     {k:"round",label:"Round quote up to nearest",help:"Gives the client a clean monthly number. 0 = no rounding.",min:0,max:500,step:25,pre:"$"}
   ]}
@@ -374,7 +382,7 @@ function buildInputs(){
       <div class="row"><label for="in-${f.k}">${f.label}</label>
         <div class="ig">${f.pre?`<span>${f.pre}</span>`:""}<input id="in-${f.k}" type="number" inputmode="decimal" step="${f.pct?Math.round(f.step*100):f.step}">${f.suf?`<span>${f.suf}</span>`:""}</div></div>
       <input type="range" id="rg-${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" aria-label="${f.label} slider">
-      ${f.chips?`<div class="chips" role="group" aria-label="Quick picks">${f.chips.map(c=>`<button class="chip" type="button" data-chip="${c}">${c} hrs</button>`).join("")}</div>`:""}
+      ${f.chips?`<div class="chips" role="group" aria-label="Quick picks">${f.chips.map(c=>`<button class="chip" type="button" data-chip="${c}" data-f="${f.k}">${f.pct?Math.round(c*100)+"%":c+" hrs"}</button>`).join("")}</div>`:""}
       <small id="help-${f.k}">${f.help}</small>
     </div>`).join("")+`</div>`).join("");
   FIELDS.forEach(f=>{
@@ -382,7 +390,7 @@ function buildInputs(){
     box.addEventListener("input",()=>{const v=parseFloat(box.value);if(isNaN(v))return;setField(f,f.pct?v/100:v);syncInputs(f.k);update()});
     rg.addEventListener("input",()=>{setField(f,parseFloat(rg.value));syncInputs();update()});
   });
-  document.querySelectorAll("[data-chip]").forEach(c=>c.addEventListener("click",()=>{setField(FIELDS[0],+c.dataset.chip);syncInputs();update()}));
+  document.querySelectorAll("[data-chip]").forEach(c=>c.addEventListener("click",()=>{setField(FIELDS.find(f=>f.k===c.dataset.f),+c.dataset.chip);syncInputs();update()}));
   syncInputs();
 }
 const getField=f=>f.get?f.get():S[f.k];
@@ -394,15 +402,15 @@ const mainCalc=(u=S.util)=>calc(S.hours,S.cost,u,S.rateOv);
 /* calculator view */
 function renderCalc(){
   const r=mainCalc(), t=S.tiers, tierRate=r.tier?r.tier.rate:null;
-  if(document.activeElement!==$("in-rate")) syncInputs("__none");
+  {const a=document.activeElement; syncInputs(a&&a.id&&a.id.startsWith("in-")?a.id.slice(3):"__none");}
   set("help-rate",blank(S.rateOv)
     ?(r.tier?`Follows the <b>${esc(r.tier.name)}</b> tier. Type a different rate to quote a custom price.`:"No tier for these hours. Type a rate to quote one.")
     :`<b>Custom rate.</b> ${r.tier?`The ${esc(r.tier.name)} tier rate is ${usd(tierRate)}. <button class="link" type="button" id="useTier">Use tier rate</button>`:""} Changing hours into another tier switches back to that tier's rate.`);
   const ut=$("useTier"); if(ut) ut.onclick=()=>{S.rateOv="";syncInputs();update()};
   set("calcAlert",!r.tier&&!r.custom?`<div class="alert bad">${hrs(S.hours)} hours/week is outside your tiers (${t[0]?.min}–${t[t.length-1]?.max} hrs), so no rate applies. Pick hours inside a tier, or add a tier on the Tiers tab.</div>`:"");
-  document.querySelectorAll("[data-chip]").forEach(c=>c.setAttribute("aria-pressed",String(+c.dataset.chip===S.hours)));
+  document.querySelectorAll("[data-chip]").forEach(c=>c.setAttribute("aria-pressed",String(Math.abs(+c.dataset.chip-S[c.dataset.f])<1e-9)));
 
-  const status=pillMeets(r.rev,r.meets,`Meets ${pct(S.target)} target`,`Below ${pct(S.target)} target`);
+  const status=pillMeets(r.rev,r.meets,`Meets ${pctT(S.target)} target`,`Below ${pctT(S.target)} target`);
   set("q-quote",usd(r.quote)); set("m-quote",usd(r.quote)+'<small style="font-size:12px;opacity:.75"> /mo</small>');
   set("q-meta",r.custom?`${usd(r.quote*12)} per year · custom rate ${usd(r.rate)}/hr`:r.tier?`${usd(r.quote*12)} per year · ${esc(r.tier.name)} tier at ${usd(r.rate)}/hr`:"No tier applies");
   set("q-margin",pct(r.margin)); set("q-pill",status); set("m-pill",status);
@@ -412,7 +420,7 @@ function renderCalc(){
   const w=x=>(x/tot*100).toFixed(2)+"%";
   $("bar").innerHTML=r.rev?`<div class="seg cost" style="width:${w(sc)}"></div><div class="seg ovh" style="width:${w(so)}"></div><div class="seg keep" style="width:${w(sk)}"></div><div class="tgt" style="left:calc(${((1-S.target)/tot*100).toFixed(2)}% - 1px)"></div>`:"";
   $("bar").setAttribute("aria-label",r.rev?`Of each revenue dollar: consultant ${pct(sc)}, overhead ${pct(so)}, you keep ${pct(r.margin)}`:"No revenue");
-  set("lg-cost",r.rev?pct(r.costM/R):"–"); set("lg-ovh",r.rev?pct(r.ovhM/R):"–"); set("lg-keep",r.rev?pct(r.margin):"–");
+  set("lg-tgt",`(${pctT(S.target)} margin)`); set("lg-cost",r.rev?pct(r.costM/R):"–"); set("lg-ovh",r.rev?pct(r.ovhM/R):"–"); set("lg-keep",r.rev?pct(r.margin):"–");
 
   $("ladder").innerHTML=t.map((x,i)=>{
     const end=i<t.length-1?Math.max(x.min,t[i+1].min-1):x.max;
@@ -428,6 +436,7 @@ function renderCalc(){
     G("Most hours you can deliver",hrs(r.maxH)+" hrs/wk","Weekly hours the consultant can work before margin falls below target.")+
     G("Overrun buffer",hrs(r.buffer)+" hrs/wk",r.buffer<0?"The client already uses more hours than you can afford.":"Extra weekly hours the client can use before you miss target.",r.rev&&r.buffer<0);
 
+  set("pnlDeal",`For the deal on the Calculator tab: ${hrs(S.hours)} hrs/week at ${usd(r.rate)}/hr (${r.custom?"custom rate":r.tier?esc(r.tier.name)+" tier":"no tier"}), ${usd(S.cost)}/hr consultant cost, ${pctT(S.target)} target margin.`);
   const L=(a,b,cls="")=>`<tr class="${cls}"><td>${a}</td><td>${b}</td></tr>`;
   $("pl").innerHTML=
     L("Client revenue",usd(r.rev,2),"sub")+
@@ -464,7 +473,7 @@ function drawChart(r){
     <circle cx="${X(cu)}" cy="${Y(mainCalc(cu).margin)}" r="6" fill="var(--navy-2)" stroke="var(--surface)" stroke-width="2.5"/>
     <text x="${(p.l+W-p.r)/2}" y="${H-4}" text-anchor="middle">Share of contracted hours actually delivered</text>
   </svg>`;
-  $("chartNote").innerHTML=r.rev?`The dot is today: the consultant works exactly the contracted hours. At ${hrs(S.hours)} contracted hrs/week, the consultant can work up to <b>${hrs(r.maxH)} hrs/week</b> before this client drops below your ${pct(S.target)} target.`:"Set hours inside a tier to see the curve.";
+  $("chartNote").innerHTML=r.rev?`The dot is today: the consultant works exactly the contracted hours. At ${hrs(S.hours)} contracted hrs/week, the consultant can work up to <b>${hrs(r.maxH)} hrs/week</b> before this client drops below your ${pctT(S.target)} target.`:"Set hours inside a tier to see the curve.";
 }
 
 /* tiers */
@@ -517,7 +526,7 @@ function buildCmp(){
 function renderCmp(){
   if($("cmp").dataset.n!==String(S.cmp.length)) buildCmp();
   $("defCost").textContent=usd(S.cost,2);
-  set("cmp-th-meets",`Meets ${pct(S.target)}?`);
+  set("cmp-th-meets",`Meets ${pctT(S.target)}?`);
   S.cmp.forEach((row,i)=>{
     const h=+row.hours||0, cost=blank(row.cost)?S.cost:+row.cost, rov=blank(row.rate)?"":row.rate, r=calc(h,cost,S.util,rov);
     $("cmp-cost-"+i).placeholder=S.cost; $("cmp-rate-"+i).placeholder=r.tier?r.tier.rate:"";
@@ -609,7 +618,7 @@ $("copyQuote").addEventListener("click",()=>{
   try{navigator.clipboard.writeText(text).then(done,fallback)}catch(e){fallback()}
 });
 
-const VIEWS=["calc","tiers","portfolio"];
+const VIEWS=["calc","pnl","tiers","portfolio"];
 function show(v){
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.view===v)));
   VIEWS.forEach(k=>$("view-"+k).hidden=k!==v);
