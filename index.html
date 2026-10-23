@@ -229,6 +229,7 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
   .market .card-head .actions{width:100%}
 }
 #mktModules .cell.name{width:160px}#mktModules .cell.area{width:100px}
+.floor-note{display:block;font-size:11.5px;font-weight:600;color:var(--muted)}
 .sources{margin:0;padding-left:18px;display:grid;gap:6px;font-size:13.5px;color:var(--muted)}
 .sources a{color:var(--ink);font-weight:600}
 @media (max-width:640px){.rrow{grid-template-columns:minmax(0,1fr) 90px}.rrow .track{grid-column:1 / -1;order:3}.axis{margin-left:0;margin-right:0}}
@@ -345,6 +346,12 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
       <div class="card-head"><h2>1099 rates by Workday module</h2><div class="actions"><button class="btn small edit-only" type="button" data-add="modules">+ Add module</button><span class="pill neutral plain">Independent consultants, USD/hr</span></div></div>
       <div class="scroll"><table id="mktModules" class="sticky-first"></table></div>
       <p class="note">Rates consultants set for themselves on Turbin (vetted Workday specialists), before platform fees. Click <b>Use median</b> to set that rate as your 1099 cost in Deal settings.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Client rates by Workday module</h2><button class="btn small edit-only" type="button" data-add="billModules">+ Add row</button><span class="legend-mini"><i class="lm-band"></i>Estimated client range <i class="lm-mid"></i>Lowest rate for your target <i class="lm-you"></i>Your rate</span></div>
+      <div class="ranges" id="mktBillMod"></div>
+      <p class="note">Estimates: no source publishes client rates by module, so each range is that module's median 1099 rate plus the typical 40–100% agency markup, rounded to $5. The navy tick is the lowest rate that hits your target margin if you pay that module's median 1099 rate. Edit any range once you have real quotes.</p>
     </div>
 
     <div class="card">
@@ -752,7 +759,10 @@ const MKT_DEFAULT={
     ["Financials","Expenses",98,120,130,""],["Financials","FDM",95,120,149,""],["Planning","Adaptive Planning",80,125,135,""],["Other","Project Management",60,105,125,""]
   ].map(([area,name,lo,mid,hi,cert])=>({area,name,lo,mid,hi,cert}))
 };
+const r5=v=>Math.round(v/5)*5;
+MKT_DEFAULT.billModules=MKT_DEFAULT.modules.map(m=>({area:m.area,name:m.name,lo:r5(m.mid*1.4),hi:r5(m.mid*2)}));
 if(!S.mkt||!Array.isArray(S.mkt.bill)) S.mkt=clone(MKT_DEFAULT);
+if(!Array.isArray(S.mkt.billModules)) S.mkt.billModules=clone(MKT_DEFAULT.billModules);
 let mktEditing=false;
 const num=v=>v===""||v==null||isNaN(+v)?null:+v;
 const money=v=>num(v)==null?"":"$"+(+v).toLocaleString("en-US",{maximumFractionDigits:2});
@@ -780,11 +790,19 @@ function buildModules(){
       <td id="mm-${i}"></td><td>${num(x.mid)!=null?`<button class="btn small" type="button" data-usecost="${i}">Use median</button>`:""}</td></tr>`).join("")+
     (m.length?"":`<tr><td colspan="8" class="empty"><b>No modules</b>Turn on editing and add one.</td></tr>`)+`</tbody>`;
 }
+function buildBillModules(){
+  const rows=S.mkt.billModules;
+  $("mktBillMod").innerHTML=rows.map((r,i)=>`<div class="rrow ${mktEditing?"editing":""}">
+      <div class="lab">${mktEditing?`${cellIn("billModules",i,"name",r.name,"Module","name")}${cellIn("billModules",i,"area",r.area,"Area","name sub")}`:`<b>${esc(r.name)}</b><span>${esc(r.area)}</span>`}</div>
+      <div class="track" id="trk-bm-${i}"></div>
+      <div class="val">${mktEditing?`<div class="vals">${cellIn("billModules",i,"lo",r.lo,"Low")}${cellIn("billModules",i,"hi",r.hi,"High")}<button class="x" type="button" data-del-sec="billModules" data-i="${i}" aria-label="Remove row">×</button></div>`:`<span id="val-bm-${i}"></span>`}</div>
+    </div>`).join("")+(rows.length?`<div class="axis">${[0,.25,.5,.75,1].map(f=>`<span style="left:${f*100}%">$${Math.round(BILL_SCALE[0]+(BILL_SCALE[1]-BILL_SCALE[0])*f)}</span>`).join("")}</div>`:`<div class="empty"><b>No rows</b>Turn on editing and add one.</div>`);
+}
 function buildMarket(){
   $("view-market").classList.toggle("editing",mktEditing);
   $("mktEditToggle").textContent=mktEditing?"Done editing":"Edit market data";
   $("mktEditToggle").classList.toggle("primary",mktEditing);
-  buildRanges("bill",BILL_SCALE,false); buildRanges("cost",COST_SCALE,true); buildModules();
+  buildRanges("bill",BILL_SCALE,false); buildRanges("cost",COST_SCALE,true); buildModules(); buildBillModules();
   document.querySelectorAll("#view-market input[data-sec]").forEach(inp=>inp.addEventListener("input",()=>{
     const row=S.mkt[inp.dataset.sec][+inp.dataset.i], f=inp.dataset.f;
     row[f]=["name","sub","area"].includes(f)?inp.value:(inp.value===""?"":parseFloat(inp.value)); update();
@@ -809,6 +827,12 @@ function renderMarket(){
   const r=mainCalc(), rate=r.rate, cost=S.cost, M=S.mkt;
   M.bill.forEach((x,i)=>{set("trk-bill-"+i,trackHTML(x,BILL_SCALE,rate,false)); if($("val-bill-"+i)) set("val-bill-"+i,rangeText(x))});
   M.cost.forEach((x,i)=>{set("trk-cost-"+i,trackHTML(x,COST_SCALE,cost,true)); if($("val-cost-"+i)) set("val-cost-"+i,rangeText(x))});
+  M.billModules.forEach((x,i)=>{
+    const mod=M.modules.find(m=>m.name.trim().toLowerCase()===String(x.name).trim().toLowerCase()), c=mod&&num(mod.mid)!=null?+mod.mid:S.cost;
+    const floor=S.target<1?(c+S.ovh)*S.util/(1-S.target):0;
+    set("trk-bm-"+i,trackHTML({lo:x.lo,hi:x.hi,mid:floor},BILL_SCALE,rate,false).replace('class="mid"',`class="mid" title="Lowest rate for ${pctT(S.target)} target with a ${money(c)} consultant: ${usd(floor)}"`));
+    if($("val-bm-"+i)) set("val-bm-"+i,`${rangeText({lo:x.lo,hi:x.hi})}<small class="floor-note">Floor ${usd(floor)}</small>`);
+  });
   M.modules.forEach((x,i)=>{const md=num(x.mid), mg=rate&&md!=null?(rate-md-S.ovh)/rate:null;
     set("mm-"+i,mg==null?"–":`<span class="pill ${mg>=S.target-1e-9?"good":"bad"}">${pct(mg)}</span>`)});
   set("mktStatus",mktEdited()?'<span class="pill warn plain">Edited by you</span>':'<span class="pill neutral plain">Researched snapshot · Oct 22, 2026</span>');
@@ -832,7 +856,7 @@ function renderMarket(){
 }
 $("mktEditToggle").addEventListener("click",()=>{mktEditing=!mktEditing;buildMarket();render()});
 document.querySelectorAll("[data-add]").forEach(b=>b.addEventListener("click",()=>{
-  const sec=b.dataset.add, blankRow=sec==="bill"?{name:"New source",sub:"",lo:"",hi:""}:sec==="cost"?{name:"New source",sub:"",lo:"",mid:"",hi:""}:{area:"",name:"New module",lo:"",mid:"",hi:"",cert:""};
+  const sec=b.dataset.add, blankRow=sec==="bill"?{name:"New source",sub:"",lo:"",hi:""}:sec==="billModules"?{area:"",name:"New module",lo:"",hi:""}:sec==="cost"?{name:"New source",sub:"",lo:"",mid:"",hi:""}:{area:"",name:"New module",lo:"",mid:"",hi:"",cert:""};
   S.mkt[sec].push(blankRow); buildMarket(); update();
   const inp=document.querySelector(`#view-market input[data-sec="${sec}"][data-i="${S.mkt[sec].length-1}"][data-f="name"]`); if(inp){inp.focus();inp.select()}
 }));
