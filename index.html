@@ -327,6 +327,7 @@ let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 if(!S||!Array.isArray(S.tiers)) S=clone(DEFAULTS);
 for(const k in DEFAULTS) if(S[k]===undefined) S[k]=clone(DEFAULTS[k]);
 S.util=1; // hours delivered always equal contracted hours
+S.hours=Math.min(40,Math.max(5,+S.hours||20));
 if(!S.v){if(S.target===0.35)S.target=0.30;S.v=2} // one-time move from the old 35% default
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 
@@ -357,7 +358,7 @@ function calc(h,cost=S.cost,util=S.util,rateOv=""){
 /* deal settings */
 const GROUPS=[
   {title:"The deal",fields:[
-    {k:"hours",label:"Weekly contracted hours",help:"Hours per week the subscription covers. This picks the rate tier.",min:0,max:45,step:0.5,suf:"hrs",chips:[10,20,25,30,40],
+    {k:"hours",label:"Weekly contracted hours",help:"Between 5 and 40 hours per week. This picks the rate tier.",min:5,max:40,step:0.5,clamp:true,suf:"hrs",chips:[10,20,25,30,40],
       set:v=>{const before=tierFor(S.hours);S.hours=v;if(tierFor(v)!==before)S.rateOv=""}},
     {k:"rate",label:"Hourly client rate",help:"",min:100,max:250,step:1,pre:"$",suf:"/hr",
       get:()=>!blank(S.rateOv)?+S.rateOv:(tierFor(S.hours)?.rate??0),
@@ -380,7 +381,7 @@ function buildInputs(){
   $("inputs").innerHTML=GROUPS.map(g=>`<div class="group"><div class="group-title">${g.title}</div>`+g.fields.map(f=>`
     <div class="field">
       <div class="row"><label for="in-${f.k}">${f.label}</label>
-        <div class="ig">${f.pre?`<span>${f.pre}</span>`:""}<input id="in-${f.k}" type="number" inputmode="decimal" step="${f.pct?Math.round(f.step*100):f.step}">${f.suf?`<span>${f.suf}</span>`:""}</div></div>
+        <div class="ig">${f.pre?`<span>${f.pre}</span>`:""}<input id="in-${f.k}" type="number" inputmode="decimal" step="${f.pct?Math.round(f.step*100):f.step}"${f.clamp?` min="${f.min}" max="${f.max}"`:""}>${f.suf?`<span>${f.suf}</span>`:""}</div></div>
       <input type="range" id="rg-${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" aria-label="${f.label} slider">
       ${f.chips?`<div class="chips" role="group" aria-label="Quick picks">${f.chips.map(c=>`<button class="chip" type="button" data-chip="${c}" data-f="${f.k}">${f.pct?Math.round(c*100)+"%":c+" hrs"}</button>`).join("")}</div>`:""}
       <small id="help-${f.k}">${f.help}</small>
@@ -389,6 +390,10 @@ function buildInputs(){
     const box=$("in-"+f.k), rg=$("rg-"+f.k);
     box.addEventListener("input",()=>{const v=parseFloat(box.value);if(isNaN(v))return;setField(f,f.pct?v/100:v);syncInputs(f.k);update()});
     rg.addEventListener("input",()=>{setField(f,parseFloat(rg.value));syncInputs();update()});
+    if(f.clamp) box.addEventListener("change",()=>{ // when you leave the box, pull the value back inside the allowed range
+      const v=parseFloat(box.value), c=isNaN(v)?getField(f):Math.min(f.max,Math.max(f.min,v));
+      if(c!==v){setField(f,c);syncInputs();update();toast(`Weekly hours must be ${f.min}–${f.max}, so it's set to ${c}`)}
+    });
   });
   document.querySelectorAll("[data-chip]").forEach(c=>c.addEventListener("click",()=>{setField(FIELDS.find(f=>f.k===c.dataset.f),+c.dataset.chip);syncInputs();update()}));
   syncInputs();
