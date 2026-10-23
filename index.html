@@ -353,7 +353,7 @@ const GROUPS=[
   {title:"The deal",fields:[
     {k:"hours",label:"Weekly contracted hours",help:"Hours per week the subscription covers. This picks the rate tier.",min:0,max:45,step:0.5,suf:"hrs",chips:[10,20,25,30,40],
       set:v=>{const before=tierFor(S.hours);S.hours=v;if(tierFor(v)!==before)S.rateOv=""}},
-    {k:"rate",label:"Hourly rate",help:"",min:100,max:250,step:1,pre:"$",suf:"/hr",
+    {k:"rate",label:"Hourly client rate",help:"",min:100,max:250,step:1,pre:"$",suf:"/hr",
       get:()=>!blank(S.rateOv)?+S.rateOv:(tierFor(S.hours)?.rate??0),
       set:v=>{const t=tierFor(S.hours);S.rateOv=(t&&v===t.rate)?"":v}}
   ]},
