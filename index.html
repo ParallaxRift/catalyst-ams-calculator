@@ -6,102 +6,178 @@
 <meta name="robots" content="noindex">
 <title>AMS Margin Calculator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: a working ledger — inputs rail on the left, live P&L on the right, tabs for tiers and portfolio below */
+/* Layout: deal desk — settings rail left, the quote and where-the-money-goes right; tiers & portfolio as sibling views */
 :root{
-  --bg:#f3f5f8; --surface:#ffffff; --ink:#14243a; --muted:#5b6b80; --line:#d9e1ea;
-  --navy:#173453; --navy-ink:#ffffff; --input:#fff4c7; --input-line:#e6c95a; --accent:#c58a00;
-  --good:#2e6b1f; --good-bg:#e3f1dc; --bad:#a61b1b; --bad-bg:#fbe3e3; --chart-grid:#e3e9f0; --chart-line:#173453;
-  --f-display:"Archivo", "Helvetica Neue", Arial, sans-serif;
-  --f-body:"Source Sans 3", "Segoe UI", Arial, sans-serif;
-  --f-num:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --bg:#eef2f6; --surface:#ffffff; --surface-2:#f6f8fb; --ink:#13233a; --muted:#5a6a7f; --line:#dbe3ec;
+  --navy:#173453; --navy-2:#24507d; --on-navy:#ffffff;
+  --input:#fff6d1; --input-line:#e2c45a; --accent:#b97f00; --accent-soft:#fbefc9;
+  --keep:#2f7a3a;
+  --good:#256b2f; --good-bg:#e1f1df; --bad:#a3221d; --bad-bg:#fbe4e2; --warn:#8a5a00; --warn-bg:#fdf0d2;
+  --sel:#fbf1d6; --grid:#e4eaf1; --shadow:0 1px 2px rgba(19,35,58,.06),0 4px 14px rgba(19,35,58,.05);
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Source Sans 3","Segoe UI",Arial,sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0e1622; --surface:#152132; --ink:#e6edf5; --muted:#93a3b8; --line:#26364b;
-  --navy:#1f4670; --navy-ink:#ffffff; --input:#3a3214; --input-line:#8a7425; --accent:#f0bf45;
-  --good:#8fd27a; --good-bg:#1d3320; --bad:#ff9a9a; --bad-bg:#3d1c1f; --chart-grid:#26364b; --chart-line:#8db8e6; color-scheme:dark}}
+  --bg:#0c141f; --surface:#132031; --surface-2:#182839; --ink:#e7eef6; --muted:#97a7bb; --line:#26384d;
+  --navy:#1c3f66; --navy-2:#5b8fc7; --on-navy:#ffffff;
+  --input:#2e2914; --input-line:#7d6a24; --accent:#f0bf45; --accent-soft:#3a3115;
+  --keep:#6cc27a;
+  --good:#8fd59a; --good-bg:#18301d; --bad:#ff9d96; --bad-bg:#3a1b1a; --warn:#f3c56a; --warn-bg:#352a12;
+  --sel:#2a2715; --grid:#22344a; --shadow:none; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0e1622; --surface:#152132; --ink:#e6edf5; --muted:#93a3b8; --line:#26364b;
-  --navy:#1f4670; --navy-ink:#ffffff; --input:#3a3214; --input-line:#8a7425; --accent:#f0bf45;
-  --good:#8fd27a; --good-bg:#1d3320; --bad:#ff9a9a; --bad-bg:#3d1c1f; --chart-grid:#26364b; --chart-line:#8db8e6; color-scheme:dark}
+  --bg:#0c141f; --surface:#132031; --surface-2:#182839; --ink:#e7eef6; --muted:#97a7bb; --line:#26384d;
+  --navy:#1c3f66; --navy-2:#5b8fc7; --on-navy:#ffffff;
+  --input:#2e2914; --input-line:#7d6a24; --accent:#f0bf45; --accent-soft:#3a3115;
+  --keep:#6cc27a;
+  --good:#8fd59a; --good-bg:#18301d; --bad:#ff9d96; --bad-bg:#3a1b1a; --warn:#f3c56a; --warn-bg:#352a12;
+  --sel:#2a2715; --grid:#22344a; --shadow:none; color-scheme:dark}
 
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
-.wrap{max-width:1180px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:20px}
-header.top{background:var(--navy);color:var(--navy-ink);border-radius:10px;padding:18px 22px;display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline;justify-content:space-between}
-header.top h1{font-family:var(--f-display);font-weight:800;font-size:22px;letter-spacing:.01em;margin:0;text-wrap:balance}
-header.top h1 span{font-weight:500;opacity:.75}
-header.top p{margin:0;font-size:13.5px;opacity:.85}
-.key{display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--input);border:1px solid var(--input-line);vertical-align:-1px;margin-right:4px}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;font-variant-numeric:tabular-nums}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+.wrap{max-width:1200px;margin:0 auto;padding-block:20px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:18px}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
-nav.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
-nav.tabs button{font:600 14px var(--f-display);color:var(--muted);background:none;border:0;padding:10px 14px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
-nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
-nav.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.top{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between}
+.brand{display:flex;gap:12px;align-items:center;min-width:0}
+.mark{width:40px;height:40px;border-radius:9px;background:var(--navy);color:var(--on-navy);display:grid;place-items:center;font:800 14px var(--f-display);letter-spacing:.02em;flex:none}
+.brand h1{font:800 21px/1.15 var(--f-display);margin:0;text-wrap:balance}
+.brand p{margin:2px 0 0;color:var(--muted);font-size:13.5px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
 
-.grid{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:20px;align-items:start}
-@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 20px;min-width:0}
-.panel h2{font:700 12px var(--f-display);text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:0 0 14px}
-.stack{display:grid;gap:16px}
+.btn{font:600 14px var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 14px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:border-color .15s,background .15s}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--navy);border-color:var(--navy);color:var(--on-navy)}
+.btn.primary:hover{background:var(--navy-2);border-color:var(--navy-2)}
+.btn.small{padding:6px 11px;font-size:13px}
+.btn.danger-armed{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+.btn svg{width:15px;height:15px}
 
-.field{display:grid;gap:6px}
-.field .row{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.field label{font-weight:600;font-size:14px}
-.field small{color:var(--muted);font-size:12.5px}
-.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
-input.in{font:500 14px var(--f-num);width:110px;text-align:right;padding:6px 8px;border-radius:6px;border:1px solid var(--input-line);background:var(--input);color:var(--ink)}
-input.in:focus-visible,input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-input[type=range]{width:100%;accent-color:var(--accent)}
+.tabs{display:inline-flex;gap:4px;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;max-width:100%;overflow-x:auto;justify-self:start}
+.tabs button{font:600 14px var(--f-display);color:var(--muted);background:none;border:0;padding:8px 16px;border-radius:7px;cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{background:var(--navy);color:var(--on-navy)}
 
-.hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
-.stat{border:1px solid var(--line);border-radius:8px;padding:12px 14px;min-width:0}
-.stat .lab{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
-.stat .val{font:600 24px var(--f-num);font-variant-numeric:tabular-nums;margin-top:4px;overflow-wrap:anywhere}
-.stat .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
-.stat.main{background:var(--navy);border-color:var(--navy);color:var(--navy-ink)}
-.stat.main .lab,.stat.main .sub{color:var(--navy-ink);opacity:.8}
+.calc{display:grid;grid-template-columns:minmax(0,370px) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.calc{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;min-width:0;box-shadow:var(--shadow)}
+.card h2{font:700 12px var(--f-display);text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:0}
+.card-head{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.stack{display:grid;gap:18px;min-width:0}
+@media (min-width:901px){.rail{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}}
 
-.pill{display:inline-flex;align-items:center;gap:6px;font:600 12.5px var(--f-body);padding:3px 10px;border-radius:999px;white-space:nowrap}
+.group{display:grid;gap:16px}
+.group + .group{border-top:1px solid var(--line);padding-top:16px;margin-top:16px}
+.group-title{font:700 11.5px var(--f-display);text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+.field{display:grid;gap:7px}
+.field .row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.field label{font-weight:600;font-size:14.5px}
+.field small{color:var(--muted);font-size:12.5px;line-height:1.35}
+.ig{display:flex;align-items:center;width:128px;flex:none;border:1px solid var(--input-line);background:var(--input);border-radius:7px;padding:0 9px;transition:box-shadow .15s}
+.ig:focus-within{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 30%,transparent)}
+.ig span{color:var(--muted);font-size:13.5px;font-weight:600}
+.ig input{border:0;background:transparent;color:var(--ink);font:600 15px var(--f-body);font-variant-numeric:tabular-nums;width:100%;min-width:0;text-align:right;padding:7px 4px;outline:none}
+input[type=number]{-moz-appearance:textfield}
+input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:600 12.5px var(--f-body);border:1px solid var(--line);background:var(--surface-2);color:var(--ink);padding:4px 10px;border-radius:999px;cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent)}
+.rail-foot{display:flex;justify-content:flex-end;margin-top:18px}
+
+.quote{background:var(--navy);color:var(--on-navy);border-radius:12px;padding:20px 22px;display:grid;gap:18px;box-shadow:var(--shadow)}
+.quote-top{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:flex-end;justify-content:space-between}
+.eyebrow{font:700 11.5px var(--f-display);text-transform:uppercase;letter-spacing:.1em;opacity:.75}
+.big{font:800 clamp(34px,6vw,46px)/1.05 var(--f-display);letter-spacing:-.01em;margin-top:4px}
+.big small{font-size:.42em;font-weight:600;opacity:.75;margin-left:4px;letter-spacing:0}
+.quote .meta{font-size:13.5px;opacity:.85;margin-top:4px}
+.qstats{display:flex;gap:26px;flex-wrap:wrap}
+.qstat .v{font:700 22px var(--f-display);margin:2px 0 4px}
+.pill{display:inline-flex;align-items:center;gap:5px;font:700 12px var(--f-body);padding:3px 10px;border-radius:999px;white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
 .pill.good{background:var(--good-bg);color:var(--good)}
 .pill.bad{background:var(--bad-bg);color:var(--bad)}
-.pill.neutral{background:var(--bg);color:var(--muted)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.neutral{background:var(--surface-2);color:var(--muted)}
+.pill.plain::before{display:none}
 
-table{border-collapse:collapse;width:100%;font-size:14px}
-th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
-th{font:600 12px var(--f-display);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.money{display:grid;gap:9px}
+.bar{position:relative;height:16px;border-radius:5px;background:rgba(255,255,255,.14);display:flex}
+.bar .seg{height:100%;transition:width .25s ease}
+.bar .seg:first-child{border-radius:5px 0 0 5px}
+.bar .seg:nth-child(3){border-radius:0 5px 5px 0}
+.seg.cost{background:#8fb2d9}.seg.ovh{background:#c9d8e8}.seg.keep{background:#7fd08c}
+.bar .tgt{position:absolute;top:-5px;bottom:-5px;width:3px;background:#f0bf45;border-radius:2px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;opacity:.92}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+
+.ladder{display:flex;gap:4px}
+.rung{flex:1 1 0;min-width:0;border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:9px 11px;display:grid;gap:1px}
+.rung b{font:700 13px var(--f-display)}
+.rung span{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rung .r{font:700 15px var(--f-display);color:var(--ink)}
+.rung.on{background:var(--sel);border-color:var(--accent);box-shadow:inset 0 -3px 0 var(--accent)}
+.ladder-note{margin-top:10px;font-size:13.5px;color:var(--muted)}
+.link{background:none;border:0;padding:0;color:var(--accent);font:600 13px var(--f-body);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+
+.guards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.guard{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--surface-2);min-width:0}
+.guard .k{font-size:12.5px;color:var(--muted);font-weight:600}
+.guard .v{font:700 21px var(--f-display);margin:3px 0 2px}
+.guard .d{font-size:12.5px;color:var(--muted);line-height:1.35}
+.guard.bad{background:var(--bad-bg);border-color:transparent}
+.guard.bad .v{color:var(--bad)}
+
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:14px}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;vertical-align:middle}
+th{font:700 11.5px var(--f-display);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--surface)}
 th:first-child,td:first-child{text-align:left}
-td.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
-tr.total td{font-weight:700;border-top:2px solid var(--ink);border-bottom:0}
-tr.sel td{background:color-mix(in srgb,var(--accent) 14%,transparent)}
-.scroll{overflow-x:auto}
+.sticky-first th:first-child,.sticky-first td:first-child{position:sticky;left:0;z-index:1;background:var(--surface)}
+tr.sel td,.sticky-first tr.sel td:first-child{background:var(--sel)}
+tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px solid var(--ink);border-bottom:0;background:var(--surface-2)}
 .pl td:first-child{white-space:normal}
-.pl tr.strong td{font-weight:700}
-#tierTable th,#tierTable td{padding:6px 4px}
-#tierTable input.cell{width:100%!important;min-width:0}
-.pl tr.gap td{border-bottom:0;padding-top:14px;font:700 11.5px var(--f-display);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.pl tr.sub td{font-weight:700}
+.pl tr.minus td{color:var(--muted)}
+.cell{font:600 14px var(--f-body);font-variant-numeric:tabular-nums;width:84px;text-align:right;padding:6px 8px;border-radius:6px;border:1px solid var(--input-line);background:var(--input);color:var(--ink)}
+.cell::placeholder{color:var(--muted);opacity:.8;font-weight:500}
+.cell.name{text-align:left;width:180px}
+.cell.tight{width:70px}
+.x{background:none;border:0;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:2px 7px;border-radius:5px}
+.x:hover{color:var(--bad);background:var(--bad-bg)}
+.note{color:var(--muted);font-size:13px;margin:12px 0 0;max-width:80ch}
+.alert{border-radius:9px;padding:10px 14px;font-weight:600;font-size:14px}
+.alert.bad{background:var(--bad-bg);color:var(--bad)}
+.alert.warn{background:var(--warn-bg);color:var(--warn)}
+.alerts{display:grid;gap:8px;margin-top:12px}
+.alerts:empty{display:none}
 
 .chart svg{width:100%;height:auto;display:block}
-.chart text{font:11px var(--f-num);fill:var(--muted)}
-.note{color:var(--muted);font-size:13px;margin:10px 0 0}
-.warn{background:var(--bad-bg);color:var(--bad);border-radius:8px;padding:10px 12px;font-weight:600;font-size:14px}
+.chart text{font:12px var(--f-body);fill:var(--muted)}
 
-button.btn{font:600 13.5px var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:7px 12px;border-radius:6px;cursor:pointer}
-button.btn:hover{border-color:var(--accent)}
-button.btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-button.x{background:none;border:0;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px}
-button.x:hover{color:var(--bad)}
-input.cell{font:500 14px var(--f-num);width:90px;text-align:right;padding:5px 7px;border-radius:5px;border:1px solid var(--input-line);background:var(--input);color:var(--ink)}
-input.cell.name{font-family:var(--f-body);text-align:left;width:170px}
-input.cell:focus-visible{outline:2px solid var(--accent)}
-.toolbar{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-bottom:12px}
-[hidden]{display:none!important}
-.cmpgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:28px}
-.cmpgrid > div:first-child{max-width:460px}
-#tierTable2 th,#tierTable2 td{padding:6px 4px}
-#tierTable2 input.cell{width:100%!important;min-width:0}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:16px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:16px}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--surface-2)}
+.kpi .k{font-size:12.5px;color:var(--muted);font-weight:600}
+.kpi .v{font:700 22px var(--f-display);margin-top:3px}
+.empty{padding:30px 12px;text-align:center!important;color:var(--muted);white-space:normal!important}
+.empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:4px}
+
+.mini{display:none}
+@media (max-width:900px){
+  .mini{display:flex;position:sticky;top:env(safe-area-inset-top,0px);z-index:20;justify-content:space-between;align-items:center;gap:10px;
+    background:var(--navy);color:var(--on-navy);border-radius:10px;padding:10px 14px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+  .mini .q{font:800 20px var(--f-display)}
+  .mini .l{font-size:11px;opacity:.75;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+  .tabs{width:100%;justify-self:stretch}
+  .tabs button{flex:1;padding:8px 10px}
+}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:9px;font-weight:600;font-size:14px;pointer-events:none;transition:opacity .2s,transform .2s;z-index:40;max-width:calc(100% - 32px)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast .link{color:var(--accent-soft);margin-left:10px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 <style>body{margin:0}img{max-width:100%}</style>
@@ -110,331 +186,420 @@ input.cell:focus-visible{outline:2px solid var(--accent)}
 
 <div class="wrap">
   <header class="top">
-    <h1>Catalyst IQ Labs <span>| AMS Margin Calculator</span></h1>
-    <p><span class="key"></span>Yellow fields are editable. Everything else updates as you type.</p>
+    <div class="brand">
+      <div class="mark" aria-hidden="true">CIQ</div>
+      <div><h1>AMS Margin Calculator</h1><p>Catalyst IQ Labs · Managed Workday Support pricing</p></div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="copyQuote" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+        Copy client quote</button>
+    </div>
   </header>
 
-  <nav class="tabs" role="tablist">
-    <button role="tab" id="tab-calc" aria-selected="true" data-view="calc">Calculator</button>
-    <button role="tab" id="tab-tiers" aria-selected="false" data-view="tiers">Tier comparison</button>
-    <button role="tab" id="tab-portfolio" aria-selected="false" data-view="portfolio">Client portfolio</button>
+  <nav class="tabs" role="tablist" aria-label="Views">
+    <button role="tab" id="tab-calc" aria-selected="true" data-view="calc" type="button">Calculator</button>
+    <button role="tab" id="tab-tiers" aria-selected="false" data-view="tiers" type="button">Tiers &amp; scenarios</button>
+    <button role="tab" id="tab-portfolio" aria-selected="false" data-view="portfolio" type="button">Client portfolio</button>
   </nav>
 
-  <!-- CALCULATOR -->
-  <section id="view-calc" class="grid">
-    <div class="stack">
-      <div class="panel">
-        <h2>Inputs</h2>
-        <div class="stack" id="inputs"></div>
-        <p class="note"><button class="btn" id="reset">Reset to V1 defaults</button></p>
-      </div>
-      <div class="panel">
-        <h2>Rate tiers</h2>
-        <div class="scroll"><table id="tierTable"></table></div>
-        <p class="note">A tier starts at its Min hrs and runs until the next tier's Min. Keep tiers in order, smallest first.</p>
-      </div>
+  <section id="view-calc" class="stack" role="tabpanel" aria-labelledby="tab-calc">
+    <div class="mini" aria-live="polite">
+      <div><div class="l">Monthly quote</div><div class="q" id="m-quote"></div></div>
+      <div id="m-pill"></div>
     </div>
-
-    <div class="stack">
-      <div id="warn" class="warn" hidden></div>
-      <div class="hero">
-        <div class="stat main"><div class="lab">Monthly subscription quote</div><div class="val" id="h-quote"></div><div class="sub">Client-facing price, no hours shown</div></div>
-        <div class="stat"><div class="lab">Contribution margin</div><div class="val" id="h-margin"></div><div class="sub" id="h-status"></div></div>
-        <div class="stat"><div class="lab">Contribution / month</div><div class="val" id="h-contrib"></div><div class="sub" id="h-annual"></div></div>
+    <div class="calc">
+      <div class="card rail">
+        <div class="card-head"><h2>Deal settings</h2><span class="pill neutral plain">Yellow = editable</span></div>
+        <div id="inputs"></div>
+        <div class="rail-foot"><button class="btn small" id="reset" type="button">Reset settings</button></div>
       </div>
 
-      <div class="panel">
-        <h2>Monthly P&amp;L</h2>
-        <div class="scroll"><table class="pl" id="pl"></table></div>
-      </div>
-
-      <div class="panel chart">
-        <h2>Margin if the consultant works more (or less) than contracted</h2>
-        <div id="chart"></div>
-        <p class="note" id="chartNote"></p>
-      </div>
-    </div>
-  </section>
-
-  <!-- TIERS -->
-  <section id="view-tiers" class="panel" hidden>
-    <div class="cmpgrid">
-      <div>
-        <h2>Rate tiers</h2>
-        <div class="scroll"><table id="tierTable2"></table></div>
-        <p class="note">Same tiers as the Calculator tab. A change here updates both.</p>
-      </div>
-      <div style="min-width:0">
-        <div class="toolbar">
-          <h2 style="margin:0">Scenarios side by side</h2>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn" id="addRow">+ Add row</button>
-            <button class="btn" id="resetRows">Reset rows</button>
+      <div class="stack">
+        <div id="calcAlert"></div>
+        <div class="quote">
+          <div class="quote-top">
+            <div>
+              <div class="eyebrow">Monthly subscription quote</div>
+              <div class="big"><span id="q-quote"></span><small>/mo</small></div>
+              <div class="meta" id="q-meta"></div>
+            </div>
+            <div class="qstats">
+              <div class="qstat"><div class="eyebrow">Margin</div><div class="v" id="q-margin"></div><div id="q-pill"></div></div>
+              <div class="qstat"><div class="eyebrow">You keep / mo</div><div class="v" id="q-keep"></div><div class="meta" id="q-annual"></div></div>
+            </div>
+          </div>
+          <div class="money">
+            <div class="eyebrow">Where each revenue dollar goes</div>
+            <div class="bar" id="bar" role="img"></div>
+            <div class="legend">
+              <span><i style="background:#8fb2d9"></i>Consultant <b id="lg-cost"></b></span>
+              <span><i style="background:#c9d8e8"></i>Overhead <b id="lg-ovh"></b></span>
+              <span><i style="background:#7fd08c"></i>You keep <b id="lg-keep"></b></span>
+              <span><i style="background:#f0bf45;width:3px"></i>Target line</span>
+            </div>
           </div>
         </div>
-        <div class="scroll"><table id="cmp"></table></div>
-        <p class="note">Edit the yellow hours, 1099 cost or client rate in any row. Leave cost blank to use the Calculator default (<span id="defCost"></span>/hr). Leave the client rate blank to use the tier rate; type one to test a custom price (the row shows Custom). Overhead, % delivered and target also come from the Calculator.</p>
+
+        <div class="card">
+          <div class="card-head"><h2>Rate tier</h2><button class="link" type="button" data-goto="tiers">Edit tier rates</button></div>
+          <div class="ladder" id="ladder"></div>
+          <div class="ladder-note" id="ladderNote"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>Pricing guardrails</h2></div>
+          <div class="guards" id="guards"></div>
+        </div>
+
+        <div class="card chart">
+          <div class="card-head"><h2>What if the client uses more hours than they pay for?</h2></div>
+          <div id="chart"></div>
+          <p class="note" id="chartNote"></p>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>Monthly P&amp;L</h2></div>
+          <div class="scroll"><table class="pl" id="pl"></table></div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- PORTFOLIO -->
-  <section id="view-portfolio" class="panel" hidden>
-    <div class="toolbar">
-      <h2 style="margin:0">Client portfolio</h2>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn" id="addClient">+ Add client</button>
-        <button class="btn" id="clearClients">Clear all</button>
-      </div>
+  <section id="view-tiers" class="stack" role="tabpanel" aria-labelledby="tab-tiers" hidden>
+    <div class="card">
+      <div class="card-head"><h2>Rate tiers</h2><span class="pill neutral plain">Used everywhere in the calculator</span></div>
+      <div class="scroll" style="max-width:520px"><table id="tierTable"></table></div>
+      <div class="alerts" id="tierAlerts"></div>
+      <p class="note">Each tier starts at its Min hours. Hours between tiers use the tier below. Keep tiers in order, smallest first.</p>
     </div>
-    <div class="scroll"><table id="port"></table></div>
-    <p class="note">Leave a client's 1099 cost blank to use the default from the Calculator. The sample rows are examples. Edit or remove them. Your list is saved in this browser only.</p>
-    <div class="kpis" id="portKpis"></div>
+    <div class="card">
+      <div class="card-head">
+        <h2>Scenarios side by side</h2>
+        <div class="actions">
+          <button class="btn small" id="addRow" type="button">+ Add row</button>
+          <button class="btn small" id="resetRows" type="button">Reset rows</button>
+        </div>
+      </div>
+      <div class="scroll"><table class="sticky-first" id="cmp"></table></div>
+      <p class="note">Type hours, a 1099 cost or a client rate in any yellow box. Blank boxes use the defaults shown in grey: <span id="defCost"></span>/hr cost from Deal settings, and the tier rate. A typed rate marks the row as Custom.</p>
+    </div>
+  </section>
+
+  <section id="view-portfolio" class="stack" role="tabpanel" aria-labelledby="tab-portfolio" hidden>
+    <div class="card">
+      <div class="card-head">
+        <h2>Client portfolio</h2>
+        <div class="actions">
+          <button class="btn small primary" id="addClient" type="button">+ Add client</button>
+          <button class="btn small" id="clearClients" type="button">Clear all</button>
+        </div>
+      </div>
+      <div class="kpis" id="portKpis"></div>
+      <div class="scroll"><table class="sticky-first" id="port"></table></div>
+      <p class="note">Leave 1099 cost blank to use the default from Deal settings. Subscription uses the rounded monthly quote. Your list is saved in this browser only.</p>
+    </div>
   </section>
 </div>
+<div class="toast" id="toast" role="status"></div>
 
 <script>
 const DEFAULTS = {
   hours:20, cost:105, ovh:0, target:0.35, util:1, weeks:52, round:50,
   tiers:[{name:"Small",min:5,max:20,rate:189},{name:"Mid",min:21,max:29,rate:179},{name:"Large",min:30,max:40,rate:169}],
   cmp:[5,10,15,20,25,30,35,40].map(h=>({hours:h,cost:"",rate:""})),
-  clients:[{name:"Example client A",hours:20,cost:""},{name:"Example client B",hours:30,cost:""},{name:"Example client C",hours:12,cost:115}]
+  clients:[{name:"Example client A",hours:20,cost:""},{name:"Example client B",hours:30,cost:""},{name:"Example client C",hours:12,cost:115}],
+  view:"calc"
 };
 const KEY="ams-margin-v1";
-let S;
-try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-if(!S||!S.tiers) S=JSON.parse(JSON.stringify(DEFAULTS));
-if(!Array.isArray(S.cmp)) S.cmp=JSON.parse(JSON.stringify(DEFAULTS.cmp));
+const clone=o=>JSON.parse(JSON.stringify(o));
+let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S||!Array.isArray(S.tiers)) S=clone(DEFAULTS);
+for(const k in DEFAULTS) if(S[k]===undefined) S[k]=clone(DEFAULTS[k]);
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 
 const $=id=>document.getElementById(id);
 const usd=(v,d=0)=>(v<0?"−":"")+"$"+Math.abs(v).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
 const pct=v=>(v*100).toFixed(1)+"%";
-const hrs=v=>v.toFixed(1);
+const hrs=v=>(Math.round(v*10)/10).toLocaleString("en-US",{maximumFractionDigits:1});
+const blank=v=>v===""||v==null;
+const set=(id,html)=>{const el=$(id);if(el&&el.innerHTML!==String(html))el.innerHTML=html};
+const esc=s=>String(s??"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+const pillMeets=(rev,ok,yes,no)=>!rev?'<span class="pill neutral">No revenue</span>':ok?`<span class="pill good">${yes}</span>`:`<span class="pill bad">${no}</span>`;
 
+/* the math — same as the Excel V2 */
 function tierFor(h){
-  const t=S.tiers, ok=t.length && h>=t[0].min && h<=t[t.length-1].max;
-  if(!ok) return null;
-  let i=0; for(let k=0;k<t.length;k++) if(h>=t[k].min) i=k;
-  return t[i];
+  const t=S.tiers; if(!t.length||h<t[0].min||h>t[t.length-1].max) return null;
+  let i=0; for(let k=0;k<t.length;k++) if(h>=t[k].min) i=k; return t[i];
 }
 function calc(h,cost=S.cost,util=S.util,rateOv=""){
-  const W=S.weeks/12, tier=tierFor(h), custom=rateOv!==""&&rateOv!=null, rate=custom?+rateOv:(tier?tier.rate:0);
-  const rev=rate*h*W;
-  const quote=S.round>0?Math.ceil(rev/S.round-1e-9)*S.round:rev;
-  const deliv=h*util*W, costM=cost*deliv, ovhM=S.ovh*deliv;
-  const gp=rev-costM, contrib=gp-ovhM, margin=rev?contrib/rev:0;
+  const W=S.weeks/12, tier=tierFor(h), custom=!blank(rateOv), rate=custom?+rateOv:(tier?tier.rate:0);
+  const rev=rate*h*W, quote=S.round>0?Math.ceil(rev/S.round-1e-9)*S.round:rev;
+  const deliv=h*util*W, costM=cost*deliv, ovhM=S.ovh*deliv, gp=rev-costM, contrib=gp-ovhM, margin=rev?contrib/rev:0;
   const floor=S.target<1?(cost+S.ovh)*util/(1-S.target):0;
   const maxH=(cost+S.ovh)>0?rate*h*(1-S.target)/(cost+S.ovh):0;
-  return {tier,rate,rev,quote,deliv,costM,ovhM,gp,gm:rev?gp/rev:0,contrib,margin,floor,headroom:rate-floor,maxH,buffer:maxH-h*util,meets:rev>0&&margin>=S.target-1e-9};
+  return {tier,custom,rate,rev,quote,deliv,costM,ovhM,gp,gm:rev?gp/rev:0,contrib,margin,floor,headroom:rate-floor,maxH,buffer:maxH-h*util,meets:rev>0&&margin>=S.target-1e-9};
 }
 
-/* ---------- inputs ---------- */
-const FIELDS=[
-  {k:"hours",label:"Weekly contracted hours",help:"Hours per week the subscription covers.",min:0,max:45,step:0.5,fmt:v=>hrs(v)},
-  {k:"cost",label:"1099 consultant cost ($/hr)",help:"What you pay the contractor per hour worked.",min:50,max:200,step:1,fmt:v=>usd(v,2)},
-  {k:"ovh",label:"Overhead allocation ($/hr)",help:"Tools, insurance, admin per hour delivered. $0 to ignore.",min:0,max:50,step:1,fmt:v=>usd(v,2)},
-  {k:"target",label:"Target contribution margin",help:"Minimum margin you want to keep.",min:0,max:0.7,step:0.01,pct:true},
-  {k:"util",label:"Hours actually delivered",help:"100% = exactly the contracted hours. 110% = client runs 10% over.",min:0.5,max:1.5,step:0.05,pct:true},
-  {k:"weeks",label:"Billable weeks per year",help:"52 = bill every week. ~48 if you pause for holidays.",min:40,max:52,step:1,fmt:v=>v},
-  {k:"round",label:"Round quote up to nearest ($)",help:"Gives the client a clean monthly number. 0 = no rounding.",min:0,max:500,step:25,fmt:v=>usd(v)}
+/* deal settings */
+const GROUPS=[
+  {title:"The deal",fields:[
+    {k:"hours",label:"Weekly contracted hours",help:"Hours per week the subscription covers. This picks the rate tier.",min:0,max:45,step:0.5,suf:"hrs",chips:[10,20,25,30,40]},
+    {k:"util",label:"Hours actually delivered",help:"100% = exactly what they pay for. Try 110% for a client who runs over.",min:0.5,max:1.5,step:0.05,pct:true,suf:"%"}
+  ]},
+  {title:"Your costs",fields:[
+    {k:"cost",label:"1099 consultant cost",help:"What you pay the contractor per hour worked.",min:50,max:200,step:1,pre:"$",suf:"/hr"},
+    {k:"ovh",label:"Overhead per hour",help:"Tools, insurance, admin per hour delivered. $0 to ignore.",min:0,max:50,step:1,pre:"$",suf:"/hr"}
+  ]},
+  {title:"Pricing rules",fields:[
+    {k:"target",label:"Target margin",help:"The minimum share of revenue you want to keep.",min:0,max:0.7,step:0.01,pct:true,suf:"%"},
+    {k:"weeks",label:"Billable weeks per year",help:"52 = bill every week. About 48 if you pause for holidays.",min:40,max:52,step:1,suf:"wks"},
+    {k:"round",label:"Round quote up to nearest",help:"Gives the client a clean monthly number. 0 = no rounding.",min:0,max:500,step:25,pre:"$"}
+  ]}
 ];
+const FIELDS=GROUPS.flatMap(g=>g.fields);
 function buildInputs(){
-  $("inputs").innerHTML=FIELDS.map(f=>`
+  $("inputs").innerHTML=GROUPS.map(g=>`<div class="group"><div class="group-title">${g.title}</div>`+g.fields.map(f=>`
     <div class="field">
       <div class="row"><label for="in-${f.k}">${f.label}</label>
-        <input class="in" id="in-${f.k}" type="number" inputmode="decimal" step="${f.pct?f.step*100:f.step}"></div>
-      <input type="range" id="rg-${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" aria-label="${f.label}">
+        <div class="ig">${f.pre?`<span>${f.pre}</span>`:""}<input id="in-${f.k}" type="number" inputmode="decimal" step="${f.pct?Math.round(f.step*100):f.step}">${f.suf?`<span>${f.suf}</span>`:""}</div></div>
+      <input type="range" id="rg-${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" aria-label="${f.label} slider">
+      ${f.chips?`<div class="chips" role="group" aria-label="Quick picks">${f.chips.map(c=>`<button class="chip" type="button" data-chip="${c}">${c} hrs</button>`).join("")}</div>`:""}
       <small>${f.help}</small>
-    </div>`).join("");
+    </div>`).join("")+`</div>`).join("");
   FIELDS.forEach(f=>{
     const box=$("in-"+f.k), rg=$("rg-"+f.k);
-    box.addEventListener("input",()=>{const v=parseFloat(box.value);if(isNaN(v))return;S[f.k]=f.pct?v/100:v;rg.value=S[f.k];update(false)});
-    rg.addEventListener("input",()=>{S[f.k]=parseFloat(rg.value);syncInputs();update(false)});
+    box.addEventListener("input",()=>{const v=parseFloat(box.value);if(isNaN(v))return;S[f.k]=f.pct?v/100:v;rg.value=S[f.k];update()});
+    rg.addEventListener("input",()=>{S[f.k]=parseFloat(rg.value);syncInputs();update()});
   });
+  document.querySelectorAll("[data-chip]").forEach(c=>c.addEventListener("click",()=>{S.hours=+c.dataset.chip;syncInputs();update()}));
   syncInputs();
 }
 function syncInputs(){FIELDS.forEach(f=>{const v=S[f.k];$("in-"+f.k).value=f.pct?+(v*100).toFixed(1):v;$("rg-"+f.k).value=v})}
 
-function buildTiers(){
-  ["tierTable","tierTable2"].forEach((tid,n)=>{
-    const pre=n?"t2":"t";
-    $(tid).innerHTML=`<thead><tr><th>Tier</th><th>Min hrs</th><th>Max hrs</th><th>Client $/hr</th></tr></thead><tbody>`+
-      S.tiers.map((t,i)=>`<tr data-i="${i}">
-        <td><input class="cell name" id="${pre}-name-${i}" data-tf="name" data-ti="${i}" value="${t.name}" aria-label="Tier name"></td>
-        <td><input class="cell" id="${pre}-min-${i}" data-tf="min" data-ti="${i}" type="number" value="${t.min}" aria-label="${t.name} min hours"></td>
-        <td><input class="cell" id="${pre}-max-${i}" data-tf="max" data-ti="${i}" type="number" value="${t.max}" aria-label="${t.name} max hours"></td>
-        <td><input class="cell" id="${pre}-rate-${i}" data-tf="rate" data-ti="${i}" type="number" value="${t.rate}" aria-label="${t.name} rate"></td></tr>`).join("")+`</tbody>`;
-    $(tid).querySelectorAll("input").forEach(inp=>inp.addEventListener("input",()=>{
-      const f=inp.dataset.tf, i=+inp.dataset.ti;
-      S.tiers[i][f]=f==="name"?inp.value:(parseFloat(inp.value)||0);
-      document.querySelectorAll(`[data-tf="${f}"][data-ti="${i}"]`).forEach(o=>{if(o!==inp)o.value=inp.value});
-      update();
-    }));
-  });
-}
-
-/* ---------- render ---------- */
-function render(){
+/* calculator view */
+function renderCalc(){
   const r=calc(S.hours), t=S.tiers;
-  // warning
-  const w=$("warn");
-  if(!r.tier){w.hidden=false;w.textContent=`${hrs(S.hours)} hours/week is outside your tiers (${t[0].min}–${t[t.length-1].max}). No billing rate applies, so revenue shows $0.`}
-  else w.hidden=true;
-  // tier highlight
-  $("tierTable").querySelectorAll("tbody tr").forEach((tr,i)=>tr.classList.toggle("sel",r.tier===t[i]));
-  // hero
-  $("h-quote").textContent=usd(r.quote);
-  $("h-margin").textContent=pct(r.margin);
-  $("h-status").innerHTML=!r.rev?'<span class="pill neutral">No revenue</span>':
-    r.meets?`<span class="pill good">Meets ${pct(S.target)} target</span>`:`<span class="pill bad">Below ${pct(S.target)} target</span>`;
-  $("h-contrib").textContent=usd(r.contrib);
-  $("h-annual").textContent=usd(r.contrib*12)+" per year";
-  // P&L
-  const L=(a,b,cls="")=>`<tr class="${cls}"><td>${a}</td><td class="num">${b}</td></tr>`;
+  set("calcAlert",!r.tier?`<div class="alert bad">${hrs(S.hours)} hours/week is outside your tiers (${t[0]?.min}–${t[t.length-1]?.max} hrs), so no rate applies. Pick hours inside a tier, or add a tier on the Tiers tab.</div>`:"");
+  document.querySelectorAll("[data-chip]").forEach(c=>c.setAttribute("aria-pressed",String(+c.dataset.chip===S.hours)));
+
+  const status=pillMeets(r.rev,r.meets,`Meets ${pct(S.target)} target`,`Below ${pct(S.target)} target`);
+  set("q-quote",usd(r.quote)); set("m-quote",usd(r.quote)+'<small style="font-size:12px;opacity:.75"> /mo</small>');
+  set("q-meta",r.tier?`${usd(r.quote*12)} per year · ${esc(r.tier.name)} tier at ${usd(r.rate)}/hr`:"No tier applies");
+  set("q-margin",pct(r.margin)); set("q-pill",status); set("m-pill",status);
+  set("q-keep",usd(r.contrib)); set("q-annual",usd(r.contrib*12)+" per year");
+
+  const R=r.rev||1, sc=Math.max(0,r.costM/R), so=Math.max(0,r.ovhM/R), sk=Math.max(0,r.contrib/R), tot=Math.max(1,sc+so+sk);
+  const w=x=>(x/tot*100).toFixed(2)+"%";
+  $("bar").innerHTML=r.rev?`<div class="seg cost" style="width:${w(sc)}"></div><div class="seg ovh" style="width:${w(so)}"></div><div class="seg keep" style="width:${w(sk)}"></div><div class="tgt" style="left:calc(${((1-S.target)/tot*100).toFixed(2)}% - 1px)"></div>`:"";
+  $("bar").setAttribute("aria-label",r.rev?`Of each revenue dollar: consultant ${pct(sc)}, overhead ${pct(so)}, you keep ${pct(r.margin)}`:"No revenue");
+  set("lg-cost",r.rev?pct(r.costM/R):"–"); set("lg-ovh",r.rev?pct(r.ovhM/R):"–"); set("lg-keep",r.rev?pct(r.margin):"–");
+
+  $("ladder").innerHTML=t.map((x,i)=>{
+    const end=i<t.length-1?Math.max(x.min,t[i+1].min-1):x.max;
+    return `<div class="rung ${r.tier===x?"on":""}" style="flex-grow:${Math.max(1,end-x.min+1)}"><b>${esc(x.name)}</b><span>${x.min}–${end} hrs</span><span class="r">${usd(x.rate)}/hr</span></div>`}).join("");
+  set("ladderNote",r.tier?`${hrs(S.hours)} hrs/week lands in <b>${esc(r.tier.name)}</b>. Bigger weekly commitments get a lower hourly rate.`:`${hrs(S.hours)} hrs/week doesn't fit any tier.`);
+
+  const G=(k,v,d,bad)=>`<div class="guard ${bad?"bad":""}"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
+  $("guards").innerHTML=
+    G("Lowest rate that hits target",usd(r.floor,2)+"/hr","Charge less than this and the deal misses your target.")+
+    G("Room to discount",usd(r.headroom,2)+"/hr",r.headroom<0?"You're already below the lowest rate.":"How far you could drop the rate and still hit target.",r.rev&&r.headroom<0)+
+    G("Most hours you can deliver",hrs(r.maxH)+" hrs/wk","Weekly hours the consultant can work before margin falls below target.")+
+    G("Overrun buffer",hrs(r.buffer)+" hrs/wk",r.buffer<0?"The client already uses more hours than you can afford.":"Extra weekly hours the client can use before you miss target.",r.rev&&r.buffer<0);
+
+  const L=(a,b,cls="")=>`<tr class="${cls}"><td>${a}</td><td>${b}</td></tr>`;
   $("pl").innerHTML=
-    L("Tier selected",r.tier?r.tier.name:"Out of range")+
-    L("Client billing rate",usd(r.rate,2)+" /hr")+
-    L("Monthly client revenue",usd(r.rev,2),"strong")+
-    L("Hours delivered per month (internal only)",hrs(r.deliv))+
-    L("1099 delivery expense",usd(-r.costM,2))+
-    L("Direct gross profit",usd(r.gp,2)+" · "+pct(r.gm))+
-    L("Overhead allocation",usd(-r.ovhM,2))+
-    L("Contribution after overhead",usd(r.contrib,2)+" · "+pct(r.margin),"strong")+
-    `<tr class="gap"><td colspan="2">Annualized</td></tr>`+
-    L("Annual revenue",usd(r.rev*12))+
-    L("Annual contribution",usd(r.contrib*12))+
-    `<tr class="gap"><td colspan="2">Pricing guardrails</td></tr>`+
-    L("Lowest rate that still hits target",usd(r.floor,2)+" /hr")+
-    L("Room to discount before missing target",`<span class="${r.headroom<0?'pill bad':''}">${usd(r.headroom,2)} /hr</span>`)+
-    L("Most hours/week you can deliver and still hit target",hrs(r.maxH))+
-    L("Overrun buffer",`<span class="${r.buffer<0?'pill bad':''}">${hrs(r.buffer)} hrs/week</span>`);
+    L("Client revenue",usd(r.rev,2),"sub")+
+    L(`Consultant cost (${hrs(r.deliv)} hrs × ${usd(S.cost,2)})`,(r.costM?"−":"")+usd(r.costM,2),"minus")+
+    L("Gross profit",`${usd(r.gp,2)} · ${pct(r.gm)}`,"sub")+
+    L("Overhead",(r.ovhM?"−":"")+usd(r.ovhM,2),"minus")+
+    L("Contribution (what you keep)",`${usd(r.contrib,2)} · ${pct(r.margin)}`,"sub")+
+    L("Rounded subscription quote",usd(r.quote,2))+
+    L("Annual revenue / contribution",`${usd(r.rev*12)} / ${usd(r.contrib*12)}`);
+
   drawChart(r);
-  renderCmp(); renderPort();
 }
 
 function drawChart(r){
-  const W=640,H=244,p={l:46,r:16,t:14,b:46};
-  const xs=[0.5,1.75], pts=[];
+  const W=640,H=250,p={l:44,r:14,t:16,b:44}, xs=[0.5,1.75], pts=[];
   for(let u=xs[0];u<=xs[1]+1e-9;u+=0.05) pts.push([u,calc(S.hours,S.cost,u).margin]);
-  const ys=pts.map(p=>p[1]).concat([S.target,0]);
-  let y0=Math.min(...ys), y1=Math.max(...ys);
-  y0=Math.floor(y0*10)/10; y1=Math.ceil(y1*10)/10; if(y1===y0) y1=y0+0.1;
+  let y0=Math.min(...pts.map(q=>q[1]),S.target,0), y1=Math.max(...pts.map(q=>q[1]),S.target);
+  y0=Math.floor(y0*10)/10; y1=Math.ceil(y1*10)/10; if(y1<=y0) y1=y0+0.1;
   const X=u=>p.l+(u-xs[0])/(xs[1]-xs[0])*(W-p.l-p.r), Y=m=>p.t+(1-(m-y0)/(y1-y0))*(H-p.t-p.b);
   let g="";
-  for(let m=y0;m<=y1+1e-9;m+=0.1){g+=`<line x1="${p.l}" x2="${W-p.r}" y1="${Y(m)}" y2="${Y(m)}" stroke="var(--chart-grid)"/><text x="${p.l-6}" y="${Y(m)+4}" text-anchor="end">${Math.round(m*100)}%</text>`}
-  [0.5,0.75,1,1.25,1.5,1.75].forEach(u=>g+=`<text x="${X(u)}" y="${H-p.b+16}" text-anchor="middle">${Math.round(u*100)}%</text>`);
-  const path=pts.map((q,i)=>(i?"L":"M")+X(q[0]).toFixed(1)+","+Y(q[1]).toFixed(1)).join("");
-  const area=path+`L${X(xs[1])},${Y(y0)}L${X(xs[0])},${Y(y0)}Z`;
-  const cu=Math.min(Math.max(S.util,xs[0]),xs[1]), cm=calc(S.hours).margin;
-  // break-even util where margin = target
-  const be=S.hours?r.maxH/S.hours:0;
-  let beMark="";
-  if(r.rev&&be>=xs[0]&&be<=xs[1]) beMark=`<line x1="${X(be)}" x2="${X(be)}" y1="${p.t}" y2="${H-p.b}" stroke="var(--bad)" stroke-dasharray="3 3"/><text x="${X(be)+4}" y="${p.t+10}" style="fill:var(--bad)">target lost past ${Math.round(be*100)}%</text>`;
-  $("chart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Contribution margin by percent of contracted hours delivered">
-    ${g}
-    <path d="${area}" fill="var(--chart-line)" opacity=".08"/>
+  for(let m=y0;m<=y1+1e-9;m+=0.1) g+=`<line x1="${p.l}" x2="${W-p.r}" y1="${Y(m)}" y2="${Y(m)}" stroke="var(--grid)"/><text x="${p.l-8}" y="${Y(m)+4}" text-anchor="end">${Math.round(m*100)}%</text>`;
+  [0.5,0.75,1,1.25,1.5,1.75].forEach(u=>g+=`<text x="${X(u)}" y="${H-p.b+18}" text-anchor="middle">${Math.round(u*100)}%</text>`);
+  const line=pts.map((q,i)=>(i?"L":"M")+X(q[0]).toFixed(1)+","+Y(q[1]).toFixed(1)).join("");
+  const be=S.hours&&r.rev?r.maxH/S.hours:0, beX=Math.min(Math.max(be,xs[0]),xs[1]);
+  const okZone=r.rev&&be>xs[0]?`<rect x="${p.l}" y="${p.t}" width="${X(beX)-p.l}" height="${H-p.t-p.b}" fill="var(--keep)" opacity=".08"/>`:"";
+  const beMark=r.rev&&be>=xs[0]&&be<=xs[1]?`<line x1="${X(be)}" x2="${X(be)}" y1="${p.t}" y2="${H-p.b}" stroke="var(--bad)" stroke-dasharray="4 4"/><text x="${X(be)+6}" y="${p.t+12}" style="fill:var(--bad);font-weight:600">misses target past ${Math.round(be*100)}%</text>`:"";
+  const cu=Math.min(Math.max(S.util,xs[0]),xs[1]);
+  $("chart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Margin by share of contracted hours actually delivered">
+    ${okZone}${g}
     <line x1="${p.l}" x2="${W-p.r}" y1="${Y(S.target)}" y2="${Y(S.target)}" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="6 4"/>
-    <text x="${W-p.r}" y="${Y(S.target)-5}" text-anchor="end" style="fill:var(--accent)">target ${Math.round(S.target*100)}%</text>
+    <text x="${W-p.r}" y="${Y(S.target)-6}" text-anchor="end" style="fill:var(--accent);font-weight:600">target ${Math.round(S.target*100)}%</text>
     ${beMark}
-    <path d="${path}" fill="none" stroke="var(--chart-line)" stroke-width="2.5"/>
-    <circle cx="${X(cu)}" cy="${Y(cm)}" r="5.5" fill="var(--chart-line)" stroke="var(--surface)" stroke-width="2"/>
-    <text x="${W/2}" y="${H-1}" text-anchor="middle">% of contracted hours actually delivered</text>
+    <path d="${line}" fill="none" stroke="var(--navy-2)" stroke-width="2.75" stroke-linejoin="round"/>
+    <circle cx="${X(cu)}" cy="${Y(calc(S.hours,S.cost,cu).margin)}" r="6" fill="var(--navy-2)" stroke="var(--surface)" stroke-width="2.5"/>
+    <text x="${(p.l+W-p.r)/2}" y="${H-4}" text-anchor="middle">Share of contracted hours actually delivered</text>
   </svg>`;
-  $("chartNote").textContent=r.rev?`At ${hrs(S.hours)} contracted hours/week, the consultant can work up to ${hrs(r.maxH)} hours/week before this client drops below your ${pct(S.target)} target.`:"Enter hours inside a tier to see the curve.";
+  $("chartNote").innerHTML=r.rev?`The dot is your current setting. At ${hrs(S.hours)} contracted hrs/week, the consultant can work up to <b>${hrs(r.maxH)} hrs/week</b> before this client drops below your ${pct(S.target)} target.`:"Set hours inside a tier to see the curve.";
 }
 
-/* Tables: inputs are built once (only when rows are added/removed), results update in place,
-   so typing never redraws the box you're typing in. */
-const pillTier=(r,rov)=>rov!==""?'<span class="pill neutral">Custom</span>':r.tier?r.tier.name:'<span class="pill bad">Out of range</span>';
-const set=(id,html)=>{const el=$(id);if(el&&el.innerHTML!==html)el.innerHTML=html};
+/* tiers */
+function buildTiers(){
+  $("tierTable").innerHTML=`<thead><tr><th>Tier</th><th>Min hrs</th><th>Max hrs</th><th>Client $/hr</th></tr></thead><tbody>`+
+    S.tiers.map((t,i)=>`<tr id="tier-row-${i}">
+      <td><input class="cell name" style="width:110px" data-tf="name" data-ti="${i}" value="${esc(t.name)}" aria-label="Tier ${i+1} name"></td>
+      <td><input class="cell tight" data-tf="min" data-ti="${i}" type="number" value="${t.min}" aria-label="Tier ${i+1} min hours"></td>
+      <td><input class="cell tight" data-tf="max" data-ti="${i}" type="number" value="${t.max}" aria-label="Tier ${i+1} max hours"></td>
+      <td><input class="cell" data-tf="rate" data-ti="${i}" type="number" value="${t.rate}" aria-label="Tier ${i+1} rate"></td></tr>`).join("")+`</tbody>`;
+  $("tierTable").querySelectorAll("input").forEach(inp=>inp.addEventListener("input",()=>{
+    const f=inp.dataset.tf,i=+inp.dataset.ti; S.tiers[i][f]=f==="name"?inp.value:(parseFloat(inp.value)||0); update();
+  }));
+}
+function tierProblems(){
+  const t=S.tiers, out=[];
+  t.forEach((x,i)=>{
+    if(x.min>x.max) out.push(["bad",`${x.name}: Min hours (${x.min}) is above Max hours (${x.max}).`]);
+    if(i){const p=t[i-1];
+      if(x.min<=p.min) out.push(["bad",`${x.name} starts at ${x.min} hrs, which isn't above ${p.name} (${p.min} hrs). Keep tiers smallest first.`]);
+      else if(x.min<=p.max) out.push(["warn",`${p.name} ends at ${p.max} hrs but ${x.name} starts at ${x.min}. From ${x.min} hrs on, the ${x.name} rate is used.`]);
+      else if(x.min>p.max+1) out.push(["warn",`No tier covers ${p.max+1}${x.min-1>p.max+1?"–"+(x.min-1):""} hrs. Those hours use the ${p.name} rate.`]);
+    }
+  });
+  return out;
+}
+function renderTiers(){
+  const r=calc(S.hours);
+  S.tiers.forEach((t,i)=>{const row=$("tier-row-"+i);if(row)row.className=r.tier===t?"sel":""});
+  set("tierAlerts",tierProblems().map(([k,m])=>`<div class="alert ${k}">${esc(m)}</div>`).join(""));
+}
 
+/* scenarios: inputs built once, results update in place so typing never jumps */
 function buildCmp(){
-  $("cmp").innerHTML=`<thead><tr><th>Weekly hrs</th><th>1099 $/hr</th><th>Tier</th><th>Client $/hr</th><th>Revenue /mo</th><th>1099 cost /mo</th><th>Overhead /mo</th><th>Contribution /mo</th><th>Margin</th><th>Floor rate</th><th id="cmp-th-meets"></th><th></th></tr></thead><tbody>`+
+  $("cmp").innerHTML=`<thead><tr><th>Weekly hrs</th><th>1099 $/hr</th><th>Client $/hr</th><th>Tier</th><th>Revenue /mo</th><th>Consultant /mo</th><th>Overhead /mo</th><th>You keep /mo</th><th>Margin</th><th>Lowest rate</th><th id="cmp-th-meets"></th><th></th></tr></thead><tbody>`+
   S.cmp.map((row,i)=>`<tr id="cmp-row-${i}">
-    <td><input class="cell" style="width:70px" id="cmp-hours-${i}" type="number" step="0.5" value="${row.hours}" aria-label="Weekly hours, row ${i+1}"></td>
-    <td><input class="cell" style="width:80px" id="cmp-cost-${i}" type="number" value="${row.cost??""}" aria-label="1099 cost, row ${i+1}"></td>
+    <td><input class="cell tight" id="cmp-hours-${i}" type="number" step="0.5" value="${row.hours}" aria-label="Weekly hours, row ${i+1}"></td>
+    <td><input class="cell" id="cmp-cost-${i}" type="number" value="${row.cost??""}" aria-label="1099 cost, row ${i+1}"></td>
+    <td><input class="cell" id="cmp-rate-${i}" type="number" value="${row.rate??""}" aria-label="Client rate, row ${i+1}"></td>
     <td id="cmp-tier-${i}"></td>
-    <td><input class="cell" style="width:80px" id="cmp-rate-${i}" type="number" value="${row.rate??""}" aria-label="Client rate, row ${i+1}"></td>
-    ${["rev","costm","ovh","con","mar","floor"].map(k=>`<td class="num" id="cmp-${k}-${i}"></td>`).join("")}
+    ${["rev","costm","ovh","con","mar","floor"].map(k=>`<td id="cmp-${k}-${i}"></td>`).join("")}
     <td id="cmp-meets-${i}"></td>
-    <td><button class="x" data-cdel="${i}" aria-label="Remove row ${i+1}">×</button></td></tr>`).join("")+`</tbody>`;
+    <td><button class="x" type="button" data-cdel="${i}" aria-label="Remove row ${i+1}">×</button></td></tr>`).join("")+`</tbody>`;
   $("cmp").querySelectorAll("input").forEach(inp=>inp.addEventListener("input",()=>{
-    const [_,f,i]=inp.id.split("-"); S.cmp[i][f]=inp.value===""?"":parseFloat(inp.value); update();
+    const [,f,i]=inp.id.split("-"); S.cmp[i][f]=inp.value===""?"":parseFloat(inp.value); update();
   }));
   $("cmp").querySelectorAll("[data-cdel]").forEach(b=>b.addEventListener("click",()=>{S.cmp.splice(+b.dataset.cdel,1);buildCmp();update()}));
-  $("cmp").dataset.n=S.cmp.length;
+  $("cmp").dataset.n=String(S.cmp.length);
 }
 function renderCmp(){
-  if(+$("cmp").dataset.n!==S.cmp.length||!$("cmp").dataset.n) buildCmp();
+  if($("cmp").dataset.n!==String(S.cmp.length)) buildCmp();
   $("defCost").textContent=usd(S.cost,2);
   set("cmp-th-meets",`Meets ${pct(S.target)}?`);
   S.cmp.forEach((row,i)=>{
-    const h=+row.hours||0, cost=row.cost===""||row.cost==null?S.cost:+row.cost, rov=row.rate==null?"":row.rate, r=calc(h,cost,S.util,rov);
-    $("cmp-cost-"+i).placeholder=S.cost;
-    $("cmp-rate-"+i).placeholder=r.tier?r.tier.rate:"";
-    $("cmp-row-"+i).className=h===S.hours&&(row.cost===""||row.cost==null)&&rov===""?"sel":"";
-    set("cmp-tier-"+i,pillTier(r,rov));
+    const h=+row.hours||0, cost=blank(row.cost)?S.cost:+row.cost, rov=blank(row.rate)?"":row.rate, r=calc(h,cost,S.util,rov);
+    $("cmp-cost-"+i).placeholder=S.cost; $("cmp-rate-"+i).placeholder=r.tier?r.tier.rate:"";
+    $("cmp-row-"+i).className=h===S.hours&&blank(row.cost)&&rov===""?"sel":"";
+    set("cmp-tier-"+i,rov!==""?'<span class="pill warn plain">Custom</span>':r.tier?esc(r.tier.name):'<span class="pill bad">Out of range</span>');
     set("cmp-rev-"+i,usd(r.rev)); set("cmp-costm-"+i,usd(r.costM)); set("cmp-ovh-"+i,usd(r.ovhM));
     set("cmp-con-"+i,usd(r.contrib)); set("cmp-mar-"+i,pct(r.margin)); set("cmp-floor-"+i,usd(r.floor,2));
-    set("cmp-meets-"+i,!r.rev?'–':r.meets?'<span class="pill good">Yes</span>':'<span class="pill bad">No</span>');
+    set("cmp-meets-"+i,!r.rev?"–":r.meets?'<span class="pill good">Yes</span>':'<span class="pill bad">No</span>');
   });
 }
 
+/* portfolio */
 function buildPort(){
-  $("port").innerHTML=`<thead><tr><th>Client</th><th>Weekly hrs</th><th>1099 $/hr</th><th>Tier</th><th>Rate</th><th>Subscription /mo</th><th>Contribution /mo</th><th>Margin</th><th>Status</th><th></th></tr></thead><tbody>`+
+  if(!S.clients.length){
+    $("port").innerHTML=`<tbody><tr><td colspan="9" class="empty"><b>No clients yet</b>Add your first client to see revenue, margin and capacity totals.</td></tr></tbody>`;
+    $("port").dataset.n="0"; return;
+  }
+  $("port").innerHTML=`<thead><tr><th>Client</th><th>Weekly hrs</th><th>1099 $/hr</th><th>Tier</th><th>Subscription /mo</th><th>You keep /mo</th><th>Margin</th><th>Status</th><th></th></tr></thead><tbody>`+
     S.clients.map((c,i)=>`<tr>
-      <td><input class="cell name" id="c-name-${i}" value="${(c.name||"").replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}" aria-label="Client name"></td>
-      <td><input class="cell" style="width:70px" id="c-hours-${i}" type="number" step="0.5" value="${c.hours}" aria-label="Weekly hours"></td>
-      <td><input class="cell" style="width:80px" id="c-cost-${i}" type="number" value="${c.cost??""}" aria-label="1099 cost"></td>
-      <td id="c-tier-${i}"></td>
-      ${["rate","rev","con","mar"].map(k=>`<td class="num" id="c-${k}-${i}"></td>`).join("")}
-      <td id="c-stat-${i}"></td>
-      <td><button class="x" data-del="${i}" aria-label="Remove client">×</button></td></tr>`).join("")+
-    `<tr class="total"><td>Portfolio total</td><td class="num" id="pt-h"></td><td></td><td></td><td></td><td class="num" id="pt-rev"></td><td class="num" id="pt-con"></td><td class="num" id="pt-mar"></td><td id="pt-stat"></td><td></td></tr></tbody>`;
+      <td><input class="cell name" id="c-name-${i}" value="${esc(c.name)}" aria-label="Client name, row ${i+1}"></td>
+      <td><input class="cell tight" id="c-hours-${i}" type="number" step="0.5" value="${c.hours}" aria-label="Weekly hours, row ${i+1}"></td>
+      <td><input class="cell" id="c-cost-${i}" type="number" value="${c.cost??""}" aria-label="1099 cost, row ${i+1}"></td>
+      <td id="c-tier-${i}"></td>${["rev","con","mar"].map(k=>`<td id="c-${k}-${i}"></td>`).join("")}<td id="c-stat-${i}"></td>
+      <td><button class="x" type="button" data-del="${i}" aria-label="Remove client ${i+1}">×</button></td></tr>`).join("")+
+    `<tr class="total"><td>Portfolio total</td><td id="pt-h"></td><td></td><td></td><td id="pt-rev"></td><td id="pt-con"></td><td id="pt-mar"></td><td id="pt-stat"></td><td></td></tr></tbody>`;
   $("port").querySelectorAll("input").forEach(inp=>inp.addEventListener("input",()=>{
-    const [_,f,i]=inp.id.split("-"); S.clients[i][f]=f==="name"?inp.value:(inp.value===""?"":parseFloat(inp.value)); update();
+    const [,f,i]=inp.id.split("-"); S.clients[i][f]=f==="name"?inp.value:(inp.value===""?"":parseFloat(inp.value)); update();
   }));
-  $("port").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{S.clients.splice(+b.dataset.del,1);buildPort();update()}));
-  $("port").dataset.n=S.clients.length;
+  $("port").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{
+    const i=+b.dataset.del, gone=S.clients.splice(i,1)[0]; update();
+    toast(`Removed ${gone.name||"client"}`,"Undo",()=>{S.clients.splice(i,0,gone);update()});
+  }));
+  $("port").dataset.n=String(S.clients.length);
 }
 function renderPort(){
-  if(+$("port").dataset.n!==S.clients.length||!$("port").dataset.n) buildPort();
-  let tot={h:0,rev:0,con:0};
+  if($("port").dataset.n!==String(S.clients.length)) buildPort();
+  const tot={h:0,rev:0,con:0};
   S.clients.forEach((c,i)=>{
-    const cost=c.cost===""||c.cost==null?S.cost:+c.cost, r=calc(+c.hours||0,cost);
-    const rev=r.quote, contrib=rev-r.costM-r.ovhM, m=rev?contrib/rev:0;
-    tot.h+=+c.hours||0; tot.rev+=rev; tot.con+=contrib;
+    const cost=blank(c.cost)?S.cost:+c.cost, r=calc(+c.hours||0,cost), rev=r.quote, con=rev-r.costM-r.ovhM, m=rev?con/rev:0;
+    tot.h+=+c.hours||0; tot.rev+=rev; tot.con+=con;
     $("c-cost-"+i).placeholder=S.cost;
-    set("c-tier-"+i,r.tier?r.tier.name:'<span class="pill bad">Fix hours</span>');
-    set("c-rate-"+i,usd(r.rate)); set("c-rev-"+i,usd(rev)); set("c-con-"+i,usd(contrib)); set("c-mar-"+i,pct(m));
-    set("c-stat-"+i,!rev?'–':m>=S.target-1e-9?'<span class="pill good">Meets</span>':'<span class="pill bad">Below</span>');
+    set("c-tier-"+i,r.tier?`${esc(r.tier.name)} · ${usd(r.rate)}`:'<span class="pill bad">Fix hours</span>');
+    set("c-rev-"+i,usd(rev)); set("c-con-"+i,usd(con)); set("c-mar-"+i,pct(m));
+    set("c-stat-"+i,!rev?"–":m>=S.target-1e-9?'<span class="pill good">Meets</span>':'<span class="pill bad">Below</span>');
   });
   const tm=tot.rev?tot.con/tot.rev:0;
-  set("pt-h",hrs(tot.h)); set("pt-rev",usd(tot.rev)); set("pt-con",usd(tot.con)); set("pt-mar",pct(tm));
-  set("pt-stat",tot.rev?(tm>=S.target?'<span class="pill good">Meets</span>':'<span class="pill bad">Below</span>'):'');
-  $("portKpis").innerHTML=[
-    ["Active clients",S.clients.length],["Annual recurring revenue",usd(tot.rev*12)],
-    ["Annual contribution",usd(tot.con*12)],["Consultants needed (40 hrs/wk)",(tot.h*S.util/40).toFixed(2)]
-  ].map(([a,b])=>`<div class="stat"><div class="lab">${a}</div><div class="val">${b}</div></div>`).join("");
+  if(S.clients.length){
+    set("pt-h",hrs(tot.h)); set("pt-rev",usd(tot.rev)); set("pt-con",usd(tot.con)); set("pt-mar",pct(tm));
+    set("pt-stat",tot.rev?(tm>=S.target?'<span class="pill good">Meets</span>':'<span class="pill bad">Below</span>'):"");
+  }
+  const K=(k,v)=>`<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+  $("portKpis").innerHTML=K("Annual recurring revenue",usd(tot.rev*12))+K("Annual contribution",usd(tot.con*12))+
+    K("Blended margin",S.clients.length?pct(tm):"–")+K("Consultants needed",(tot.h*S.util/40).toFixed(2)+" FTE");
 }
 
+/* glue */
+function render(){renderCalc();renderTiers();renderCmp();renderPort()}
 function update(){save();render()}
 
-$("addClient").addEventListener("click",()=>{S.clients.push({name:"New client",hours:20,cost:""});update();const i=S.clients.length-1;$("c-name-"+i).focus();$("c-name-"+i).select()});
-$("addRow").addEventListener("click",()=>{const last=S.cmp[S.cmp.length-1];S.cmp.push({hours:last?Math.min((+last.hours||0)+5,40):20,cost:"",rate:""});update();$("cmp-hours-"+(S.cmp.length-1)).focus()});
-$("resetRows").addEventListener("click",()=>{S.cmp=JSON.parse(JSON.stringify(DEFAULTS.cmp));buildCmp();update()});
-$("clearClients").addEventListener("click",()=>{S.clients=[];buildPort();update()});
-$("reset").addEventListener("click",()=>{const c=S.clients;const rows=S.cmp;S=JSON.parse(JSON.stringify(DEFAULTS));S.clients=c;S.cmp=rows;syncInputs();buildTiers();update()});
-
-document.querySelectorAll("nav.tabs button").forEach(b=>b.addEventListener("click",()=>show(b.dataset.view)));
-function show(v){
-  document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.view===v));
-  ["calc","tiers","portfolio"].forEach(k=>$("view-"+k).hidden=k!==v);
+let tTimer;
+function toast(msg,actionLabel,action){
+  const t=$("toast"); clearTimeout(tTimer);
+  t.innerHTML=esc(msg)+(actionLabel?`<button class="link" type="button">${actionLabel}</button>`:"");
+  t.style.pointerEvents=actionLabel?"auto":"none";
+  if(actionLabel) t.querySelector("button").onclick=()=>{action();t.classList.remove("show");t.style.pointerEvents="none"};
+  t.classList.add("show"); tTimer=setTimeout(()=>{t.classList.remove("show");t.style.pointerEvents="none"},actionLabel?6000:2400);
 }
-const h=(location.hash||"").slice(1); if(["calc","tiers","portfolio"].includes(h)) show(h);
+function armed(btn,label,fn){
+  const orig=btn.textContent; let timer;
+  const disarm=()=>{delete btn.dataset.armed;btn.classList.remove("danger-armed");btn.textContent=orig};
+  btn.addEventListener("click",()=>{
+    if(btn.dataset.armed){clearTimeout(timer);disarm();fn();return}
+    btn.dataset.armed="1";btn.classList.add("danger-armed");btn.textContent=label;timer=setTimeout(disarm,3500);
+  });
+}
+
+$("addClient").addEventListener("click",()=>{S.clients.push({name:"New client",hours:20,cost:""});update();const i=S.clients.length-1;$("c-name-"+i).focus();$("c-name-"+i).select()});
+armed($("clearClients"),"Click again to clear",()=>{const old=S.clients;S.clients=[];update();toast("Cleared all clients","Undo",()=>{S.clients=old;update()})});
+$("addRow").addEventListener("click",()=>{const last=S.cmp[S.cmp.length-1];S.cmp.push({hours:last?Math.min((+last.hours||0)+5,40):20,cost:"",rate:""});update();$("cmp-hours-"+(S.cmp.length-1)).focus()});
+armed($("resetRows"),"Click again to reset",()=>{S.cmp=clone(DEFAULTS.cmp);$("cmp").dataset.n="";update()});
+armed($("reset"),"Click again to reset",()=>{["hours","cost","ovh","target","util","weeks","round"].forEach(k=>S[k]=DEFAULTS[k]);S.tiers=clone(DEFAULTS.tiers);syncInputs();buildTiers();update();toast("Settings reset to V1 defaults")});
+
+$("copyQuote").addEventListener("click",()=>{
+  const r=calc(S.hours);
+  if(!r.rev){toast("Set hours inside a tier first");return}
+  const text=`Catalyst IQ Labs – Managed Workday Support\nMonthly subscription: ${usd(r.quote)}\nAnnual value: ${usd(r.quote*12)}\nBilled monthly.`;
+  const done=()=>toast("Client quote copied. No hours or costs included.");
+  const fallback=()=>{const ta=document.createElement("textarea");ta.value=text;document.body.appendChild(ta);ta.select();let ok=false;try{ok=document.execCommand("copy")}catch(e){}ta.remove();ok?done():toast(`Copy this: ${usd(r.quote)}/mo, ${usd(r.quote*12)}/yr`)};
+  try{navigator.clipboard.writeText(text).then(done,fallback)}catch(e){fallback()}
+});
+
+const VIEWS=["calc","tiers","portfolio"];
+function show(v){
+  document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.view===v)));
+  VIEWS.forEach(k=>$("view-"+k).hidden=k!==v);
+  S.view=v; save();
+}
+document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>show(b.dataset.view)));
+document.querySelectorAll("[data-goto]").forEach(b=>b.addEventListener("click",()=>{show(b.dataset.goto);window.scrollTo({top:0,behavior:"smooth"})}));
 
 buildInputs(); buildTiers(); render();
+const h0=(location.hash||"").slice(1);
+show(VIEWS.includes(h0)?h0:(VIEWS.includes(S.view)?S.view:"calc"));
 </script>
 
 </body>
