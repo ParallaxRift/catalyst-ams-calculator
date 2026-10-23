@@ -278,6 +278,24 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
 .brand{gap:16px}
 .brand-div{width:1px;align-self:stretch;background:var(--line);flex:none}
 @media (max-width:640px){.logo{height:32px}.brand{gap:12px}.brand h1{font-size:18px}}
+
+/* backup panel */
+.backup-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.backup-col{display:grid;gap:8px;align-content:start}
+.backup-col small.muted{color:var(--muted);font-size:12.5px}
+#bkText{width:100%;font:13px ui-monospace,Menlo,monospace;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--surface-2);color:var(--ink);resize:vertical}
+/* term + team */
+.ig.locked{opacity:.6}
+.team{display:grid;gap:8px;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.team-t{font-size:13px}
+.team-t th,.team-t td{padding:4px 3px;border-bottom:0;background:transparent}
+.team-t th{font-size:10.5px}
+.team-t th:nth-child(2),.team-t th:nth-child(3),.team-t td:nth-child(2),.team-t td:nth-child(3){text-align:center}
+.team-t .cell{width:58px;padding:5px 6px;font-size:13px}
+.team-t .cell.name{width:100%;min-width:0}
+.team-t td:first-child{width:100%}
+.team-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+[data-term]{flex:1 1 0}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 <style>body{margin:0}img{max-width:100%}</style>
@@ -292,7 +310,27 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
       <span class="brand-div" aria-hidden="true"></span>
       <div><h1>AMS Margin Calculator</h1><p>Pat's Managed Workday Support Pricing Calc</p></div>
     </div>
+    <div class="actions"><button class="btn" type="button" id="backupToggle" aria-expanded="false" aria-controls="backupPanel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Backup &amp; restore</button></div>
   </header>
+
+  <section class="card" id="backupPanel" hidden>
+    <div class="card-head"><h2>Backup &amp; restore</h2><button class="x" type="button" id="backupClose" aria-label="Close">×</button></div>
+    <p class="note" style="margin:0 0 14px">Your settings, tiers, scenarios, clients and market data are saved only in this browser. Back them up to move to another device or keep a copy.</p>
+    <div class="backup-grid">
+      <div class="backup-col">
+        <b>Save a backup</b>
+        <div class="actions"><button class="btn primary small" type="button" id="bkDownload">Download backup file</button><button class="btn small" type="button" id="bkCopy">Copy backup text</button></div>
+        <small class="muted">If the download doesn't start (for example inside the Claude app), use Copy and paste the text into a note or email.</small>
+      </div>
+      <div class="backup-col">
+        <b>Restore a backup</b>
+        <div class="actions"><button class="btn small" type="button" id="bkPick">Choose backup file…</button><input type="file" id="bkFile" accept=".json,application/json,text/plain" hidden></div>
+        <textarea id="bkText" rows="3" placeholder="…or paste backup text here" aria-label="Paste backup text"></textarea>
+        <div class="actions"><button class="btn small" type="button" id="bkRestoreText">Restore pasted backup</button></div>
+      </div>
+    </div>
+  </section>
 
   <nav class="tabs" role="tablist" aria-label="Views">
     <button role="tab" id="tab-calc" aria-selected="true" data-view="calc" type="button">Calculator</button>
@@ -449,7 +487,10 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
 <script>
 const DEFAULTS = {
   hours:20, rateOv:"", cost:105, ovh:0, target:0.30, util:1, weeks:52, round:50,
-  tiers:[{name:"Small",min:5,max:20,rate:189},{name:"Mid",min:21,max:29,rate:179},{name:"Large",min:30,max:40,rate:169}],
+  tiers:[{name:"Lite Engagement",min:5,max:20,rate:189},{name:"Part-Time",min:21,max:29,rate:180},{name:"Full-Time",min:30,max:40,rate:174}],
+  term:"m", disc:{m:0,"6":0.03,"12":0.05},
+  useTeam:false, costSingle:105,
+  team:[{name:"Senior functional",share:60,cost:115},{name:"Integrations / technical",share:25,cost:95},{name:"Junior / support",share:15,cost:70}],
   cmp:[5,10,15,20,25,30,35,40].map(h=>({hours:h,cost:"",rate:""})),
   clients:[{name:"Example client A",hours:20,cost:""},{name:"Example client B",hours:30,cost:""},{name:"Example client C",hours:12,cost:115}],
   view:"calc"
@@ -465,6 +506,20 @@ S.cost=DEFAULTS.cost; // always open at the default $105 1099 cost
 S.hours=Math.min(40,Math.max(5,+S.hours||20));
 if(S.rateOv!==""&&S.rateOv!=null) S.rateOv=Math.min(200,Math.max(75,+S.rateOv));
 if(!S.v){if(S.target===0.35)S.target=0.30;S.v=2} // one-time move from the old 35% default
+if(S.v<3){ // one-time move to the new tier defaults: Lite Engagement / Part-Time / Full-Time, rates without price dips
+  const oldNames=["Small","Mid","Large"];
+  S.tiers.forEach((t,i)=>{if(t.name===oldNames[i])t.name=DEFAULTS.tiers[i].name});
+  if(S.tiers[1]&&S.tiers[1].rate===179)S.tiers[1].rate=180;
+  if(S.tiers[2]&&S.tiers[2].rate===169)S.tiers[2].rate=174;
+  S.v=3;
+}
+if(!S.disc||typeof S.disc!=="object") S.disc=clone(DEFAULTS.disc);
+if(!["m","6","12"].includes(S.term)) S.term="m";
+if(!Array.isArray(S.team)||!S.team.length) S.team=clone(DEFAULTS.team);
+const blendCost=()=>{const tot=S.team.reduce((a,x)=>a+(+x.share||0),0);return tot>0?S.team.reduce((a,x)=>a+(+x.share||0)*(+x.cost||0),0)/tot:0};
+const termDisc=()=>Math.min(0.5,Math.max(0,+S.disc[S.term]||0));
+const TERM_LABEL={m:"Month-to-month","6":"6 months","12":"12 months"}, TERM_MONTHS={m:1,"6":6,"12":12};
+if(S.useTeam) S.cost=Math.round(blendCost()*100)/100;
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 
 const $=id=>document.getElementById(id);
@@ -482,13 +537,13 @@ function tierFor(h){
   const t=S.tiers; if(!t.length||h<t[0].min||h>t[t.length-1].max) return null;
   let i=0; for(let k=0;k<t.length;k++) if(h>=t[k].min) i=k; return t[i];
 }
-function calc(h,cost=S.cost,util=S.util,rateOv=""){
+function calc(h,cost=S.cost,util=S.util,rateOv="",disc=0){
   const W=S.weeks/12, tier=tierFor(h), custom=!blank(rateOv), rate=custom?+rateOv:(tier?tier.rate:0);
-  const rev=rate*h*W, quote=S.round>0?Math.ceil(rev/S.round-1e-9)*S.round:rev;
+  const list=rate*h*W, rev=list*(1-disc), quote=S.round>0?Math.ceil(rev/S.round-1e-9)*S.round:rev;
   const deliv=h*util*W, costM=cost*deliv, ovhM=S.ovh*deliv, gp=rev-costM, contrib=gp-ovhM, margin=rev?contrib/rev:0;
-  const floor=S.target<1?(cost+S.ovh)*util/(1-S.target):0;
-  const maxH=(cost+S.ovh)>0?rate*h*(1-S.target)/(cost+S.ovh):0;
-  return {tier,custom,rate,rev,quote,deliv,costM,ovhM,gp,gm:rev?gp/rev:0,contrib,margin,floor,headroom:rate-floor,maxH,buffer:maxH-h*util,meets:rev>0&&margin>=S.target-1e-9};
+  const floor=S.target<1?(cost+S.ovh)*util/((1-S.target)*(1-disc)):0;
+  const maxH=(cost+S.ovh)>0?rate*(1-disc)*h*(1-S.target)/(cost+S.ovh):0;
+  return {tier,custom,rate,disc,list,rev,quote,deliv,costM,ovhM,gp,gm:rev?gp/rev:0,contrib,margin,floor,headroom:rate-floor,maxH,buffer:maxH-h*util,meets:rev>0&&margin>=S.target-1e-9};
 }
 
 /* deal settings */
@@ -500,21 +555,51 @@ const GROUPS=[
       get:()=>!blank(S.rateOv)?+S.rateOv:(tierFor(S.hours)?.rate??0),
       set:v=>{const t=tierFor(S.hours);S.rateOv=(t&&v===t.rate)?"":v}}
   ]},
-  {title:"Your costs",fields:[
+  {title:"Your costs",extraAfter:"cost",fields:[
     {k:"cost",label:"1099 consultant cost",help:"What you pay the contractor per hour worked.",min:50,max:200,step:1,pre:"$",suf:"/hr"},
     {k:"ovh",label:"Overhead per hour",help:"Tools, insurance, admin per hour delivered. $0 to ignore.",min:0,max:50,step:1,pre:"$",suf:"/hr"}
   ]},
   {title:"Margins",fields:[
     {k:"target",label:"Target margin",help:"The minimum share of revenue you want to keep. Pick one or type your own.",min:0,max:0.7,step:0.01,pct:true,suf:"%",chips:[0.25,0.30,0.35,0.40]}
   ]},
-  {title:"Pricing rules",fields:[
+  {title:"Pricing rules",extra:"term",fields:[
     {k:"weeks",label:"Billable weeks per year",help:"52 = bill every week. About 48 if you pause for holidays.",min:40,max:52,step:1,suf:"wks"},
     {k:"round",label:"Round quote up to nearest",help:"Gives the client a clean monthly number. 0 = no rounding.",min:0,max:500,step:25,pre:"$"}
   ]}
 ];
 const FIELDS=GROUPS.flatMap(g=>g.fields);
+const TERM_HTML=`<div class="field">
+    <div class="row"><label>Contract term</label></div>
+    <div class="chips" role="group" aria-label="Contract term">${["m","6","12"].map(k=>`<button class="chip" type="button" data-term="${k}">${{m:"Monthly","6":"6 months","12":"12 months"}[k]}</button>`).join("")}</div>
+    <div class="row"><label for="in-disc" id="lbl-disc">Term discount</label><div class="ig"><input id="in-disc" type="number" inputmode="decimal" step="0.5" min="0" max="50"><span>%</span></div></div>
+    <small id="help-term"></small>
+  </div>`;
+const TEAM_HTML=`<div class="field">
+    <div class="chips" role="group" aria-label="Who does the work"><button class="chip" type="button" data-costmode="one">One consultant</button><button class="chip" type="button" data-costmode="team">Blended team</button></div>
+    <div id="teamBox" class="team" hidden>
+      <table class="team-t"><thead><tr><th>Role</th><th>% hrs</th><th>$/hr</th><th></th></tr></thead><tbody id="teamRows"></tbody></table>
+      <div class="team-foot"><button class="btn small" type="button" id="addRole">+ Add role</button><span id="teamTotal"></span></div>
+    </div>
+  </div>`;
+function teamChanged(){S.cost=Math.round(blendCost()*100)/100;syncInputs("__none");update()}
+function buildTeam(){
+  $("teamBox").hidden=!S.useTeam;
+  $("teamRows").innerHTML=S.team.map((x,i)=>`<tr>
+    <td><input class="cell name" id="tm-name-${i}" value="${esc(x.name)}" aria-label="Role ${i+1} name"></td>
+    <td><input class="cell" id="tm-share-${i}" type="number" step="5" min="0" value="${x.share}" aria-label="Role ${i+1} share of hours"></td>
+    <td><input class="cell" id="tm-cost-${i}" type="number" step="1" min="0" value="${x.cost}" aria-label="Role ${i+1} cost per hour"></td>
+    <td><button class="x" type="button" data-delrole="${i}" aria-label="Remove role ${i+1}">×</button></td></tr>`).join("");
+  $("teamRows").querySelectorAll("input").forEach(inp=>inp.addEventListener("input",()=>{
+    const [,f,i]=inp.id.split("-"); S.team[i][f]=f==="name"?inp.value:(inp.value===""?0:parseFloat(inp.value)); teamChanged();
+  }));
+  $("teamRows").querySelectorAll("[data-delrole]").forEach(b=>b.addEventListener("click",()=>{
+    if(S.team.length<=1){toast("A team needs at least one role");return}
+    const i=+b.dataset.delrole,gone=S.team.splice(i,1)[0];buildTeam();teamChanged();
+    toast(`Removed ${gone.name||"role"}`,"Undo",()=>{S.team.splice(i,0,gone);buildTeam();teamChanged()});
+  }));
+}
 function buildInputs(){
-  $("inputs").innerHTML=GROUPS.map(g=>`<div class="group"><div class="group-title">${g.title}</div>`+g.fields.map(f=>`
+  $("inputs").innerHTML=GROUPS.map(g=>`<div class="group"><div class="group-title">${g.title}</div>`+(g.extra==="term"?TERM_HTML:"")+g.fields.map(f=>`
     <div class="field">
       <div class="row"><label for="in-${f.k}">${f.label}</label>
         <div class="ig">${f.pre?`<span>${f.pre}</span>`:""}<input id="in-${f.k}" type="number" inputmode="decimal" step="${f.pct?Math.round(f.step*100):f.step}"${f.clamp?` min="${f.min}" max="${f.max}"`:""}>${f.suf?`<span>${f.suf}</span>`:""}</div></div>
@@ -522,7 +607,7 @@ function buildInputs(){
       ${f.tierChips?`<div class="chips" role="group" aria-label="Tier rates" id="rateChips"></div>`:""}
       ${f.chips?`<div class="chips" role="group" aria-label="Quick picks">${f.chips.map(c=>`<button class="chip" type="button" data-chip="${c}" data-f="${f.k}">${f.pct?Math.round(c*100)+"%":c+" hrs"}</button>`).join("")}</div>`:""}
       <small id="help-${f.k}">${f.help}</small>
-    </div>`).join("")+`</div>`).join("");
+    </div>${g.extraAfter===f.k?TEAM_HTML:""}`).join("")+`</div>`).join("");
   FIELDS.forEach(f=>{
     const box=$("in-"+f.k), rg=$("rg-"+f.k);
     box.addEventListener("input",()=>{const v=parseFloat(box.value);if(isNaN(v))return;setField(f,f.pct?v/100:v);syncInputs(f.k);update()});
@@ -533,17 +618,36 @@ function buildInputs(){
     });
   });
   document.querySelectorAll("[data-chip]").forEach(c=>c.addEventListener("click",()=>{setField(FIELDS.find(f=>f.k===c.dataset.f),+c.dataset.chip);syncInputs();update()}));
+  // contract term
+  document.querySelectorAll("[data-term]").forEach(c=>c.addEventListener("click",()=>{S.term=c.dataset.term;$("in-disc").value=+((S.disc[S.term]||0)*100).toFixed(1);update()}));
+  $("in-disc").addEventListener("input",()=>{const v=parseFloat($("in-disc").value);S.disc[S.term]=isNaN(v)?0:Math.min(50,Math.max(0,v))/100;update()});
+  $("in-disc").value=+((S.disc[S.term]||0)*100).toFixed(1);
+  // blended team
+  document.querySelectorAll("[data-costmode]").forEach(c=>c.addEventListener("click",()=>{
+    const team=c.dataset.costmode==="team"; if(team===S.useTeam) return;
+    if(team){S.costSingle=S.cost;S.useTeam=true;S.cost=Math.round(blendCost()*100)/100}else{S.useTeam=false;S.cost=+S.costSingle||DEFAULTS.cost}
+    buildTeam();syncInputs();update();
+  }));
+  $("addRole").addEventListener("click",()=>{S.team.push({name:"New role",share:0,cost:S.cost});buildTeam();teamChanged();const i=S.team.length-1;$("tm-name-"+i).focus();$("tm-name-"+i).select()});
+  buildTeam();
   syncInputs();
 }
 const getField=f=>f.get?f.get():S[f.k];
 const setField=(f,v)=>f.set?f.set(v):(S[f.k]=v);
 // refresh every box from the data, except the one being typed in (skip) so the cursor never jumps
 function syncInputs(skip){FIELDS.forEach(f=>{const v=getField(f);if(f.k!==skip)$("in-"+f.k).value=f.pct?+(v*100).toFixed(1):v;$("rg-"+f.k).value=v})}
-const mainCalc=(u=S.util)=>calc(S.hours,S.cost,u,S.rateOv);
+const mainCalc=(u=S.util)=>calc(S.hours,S.cost,u,S.rateOv,termDisc());
 
 /* calculator view */
 function renderCalc(){
   const r=mainCalc(), t=S.tiers, tierRate=r.tier?r.tier.rate:null;
+  document.querySelectorAll("[data-term]").forEach(c=>c.setAttribute("aria-pressed",String(c.dataset.term===S.term)));
+  set("help-term",S.term==="m"?"Month-to-month usually gets no discount. Pick a longer term to see what a commitment discount costs you.":
+    `Applied to the hourly rate. Over ${TERM_MONTHS[S.term]} months the client pays <b>${usd(r.quote*TERM_MONTHS[S.term])}</b>; the discount costs you ${usd((r.list-r.rev)*TERM_MONTHS[S.term])}.`);
+  document.querySelectorAll("[data-costmode]").forEach(c=>c.setAttribute("aria-pressed",String((c.dataset.costmode==="team")===!!S.useTeam)));
+  $("in-cost").disabled=!!S.useTeam; $("rg-cost").disabled=!!S.useTeam; $("in-cost").closest(".ig").classList.toggle("locked",!!S.useTeam);
+  set("help-cost",S.useTeam?`Blended from your team below: <b>${usd(S.cost,2)}/hr</b> average.`:"What you pay the contractor per hour worked.");
+  {const tot=S.team.reduce((a,x)=>a+(+x.share||0),0); set("teamTotal",Math.abs(tot-100)<0.01?`<span class="pill good">Shares add up to 100%</span>`:`<span class="pill warn plain">Shares add up to ${+tot.toFixed(1)}%</span>`);}
   {const a=document.activeElement; syncInputs(a&&a.id&&a.id.startsWith("in-")?a.id.slice(3):"__none");}
   set("help-rate",blank(S.rateOv)
     ?(r.tier?`Follows the <b>${esc(r.tier.name)}</b> tier. Type a different rate to quote a custom price.`:"No tier for these hours. Type a rate to quote one.")
@@ -557,7 +661,9 @@ function renderCalc(){
 
   const status=pillMeets(r.rev,r.meets,`Meets ${pctT(S.target)} target`,`Below ${pctT(S.target)} target`);
   set("q-quote",usd(r.quote)); set("m-quote",usd(r.quote)+'<small style="font-size:12px;opacity:.75"> /mo</small>');
-  set("q-meta",r.custom?`${usd(r.quote*12)} per year · custom rate ${usd(r.rate)}/hr`:r.tier?`${usd(r.quote*12)} per year · ${esc(r.tier.name)} tier at ${usd(r.rate)}/hr`:"No tier applies");
+  const rateTxt=r.custom?`custom rate ${usd(r.rate)}/hr`:r.tier?`${esc(r.tier.name)} tier at ${usd(r.rate)}/hr`:"no tier applies";
+  const termTxt=S.term==="m"?"month-to-month":`${TERM_LABEL[S.term]} contract: <b>${usd(r.quote*TERM_MONTHS[S.term])}</b>`+(r.disc?` (${pctT(r.disc)} off)`:"");
+  set("q-meta",`${usd(r.quote*12)} per year · ${rateTxt}<br>${termTxt}`);
   set("q-margin",pct(r.margin)); set("q-pill",status); set("m-pill",status);
   set("q-keep",usd(r.contrib)); set("q-annual",usd(r.contrib*12)+" per year");
 
@@ -580,8 +686,8 @@ function renderCalc(){
   set("ladderNote",r.tier?`${hrs(S.hours)} hrs/week lands in <b>${esc(r.tier.name)}</b>${r.custom?`, but you're quoting a custom ${usd(r.rate)}/hr`:""}. Bigger weekly commitments get a lower hourly rate.`:`${hrs(S.hours)} hrs/week doesn't fit any tier.`);
 
   const CAP_HRS=40, RATE_MAX=FIELDS.find(f=>f.k==="rate").max;
-  const atCap=calc(S.hours,S.cost,S.util,RATE_MAX), breakEven=(S.cost+S.ovh)*S.util, usedHrs=S.hours*S.util;
-  const perCon=usedHrs>0?Math.floor(CAP_HRS/usedHrs+1e-9):0, spare=CAP_HRS-perCon*usedHrs, full=calc(CAP_HRS,S.cost,S.util,r.rate);
+  const atCap=calc(S.hours,S.cost,S.util,RATE_MAX,termDisc()), breakEven=(S.cost+S.ovh)*S.util, usedHrs=S.hours*S.util;
+  const perCon=usedHrs>0?Math.floor(CAP_HRS/usedHrs+1e-9):0, spare=CAP_HRS-perCon*usedHrs, full=calc(CAP_HRS,S.cost,S.util,r.rate,termDisc());
   const G=(k,v,d,bad)=>`<div class="guard ${bad?"bad":""}"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
   $("guards").innerHTML=
     G("Lowest rate that hits target",usd(r.floor,2)+"/hr",!r.rev?"Set a rate to compare.":r.rate<r.floor-1e-9?`Today's rate is ${usd(r.floor-r.rate,2)}/hr below it.`:`Today's rate is ${usd(r.rate-r.floor,2)}/hr above it.`,r.rev&&r.rate<r.floor-1e-9)+
@@ -591,12 +697,17 @@ function renderCalc(){
     G("Clients this size per consultant",String(perCon),perCon<1?"This client needs more than one consultant.":spare>0.05?`${perCon} × ${hrs(usedHrs)} hrs = ${hrs(perCon*usedHrs)} hrs/wk, with ${hrs(spare)} hrs/wk spare.`:`Fills the ${CAP_HRS}-hour week exactly.`,perCon<1)+
     G("One fully booked consultant",usd(full.rev)+"/mo",`${CAP_HRS} hrs/wk at ${usd(r.rate)}/hr. You keep ${usd(full.contrib)}/mo (${pct(full.margin)}).`);
 
-  set("pnlDeal",`For this deal: ${hrs(S.hours)} hrs/week at ${usd(r.rate)}/hr (${r.custom?"custom rate":r.tier?esc(r.tier.name)+" tier":"no tier"}), ${usd(S.cost)}/hr consultant cost, ${pctT(S.target)} target margin.`);
+  set("pnlDeal",`For this deal: ${hrs(S.hours)} hrs/week at ${usd(r.rate)}/hr (${r.custom?"custom rate":r.tier?esc(r.tier.name)+" tier":"no tier"}), ${S.useTeam?`blended team at ${usd(S.cost,2)}/hr`:`${usd(S.cost)}/hr consultant cost`}, ${TERM_LABEL[S.term].toLowerCase()}${r.disc?` (${pctT(r.disc)} off)`:""}, ${pctT(S.target)} target margin.`);
   const sh=v=>r.rev?pct(v/r.rev):"–", neg=v=>(v?"−":"")+usd(v,2), negA=v=>(v?"−":"")+usd(v*12);
   const L=(a,m,y,share,cls="")=>`<tr class="${cls}"><td>${a}</td><td>${m}</td><td>${y}</td><td class="pctcol">${share}</td></tr>`;
   $("pl").innerHTML=`<thead><tr><th></th><th>Monthly</th><th>Annual</th><th>% of revenue</th></tr></thead><tbody>`+
+    (r.disc?L(`List price <span style="color:var(--muted)">(${hrs(S.hours*S.weeks/12)} hrs/mo × ${usd(r.rate,2)})</span>`,usd(r.list,2),usd(r.list*12),"","minus")+
+      L(`${TERM_LABEL[S.term]} discount (${pctT(r.disc)})`,neg(r.list-r.rev),negA(r.list-r.rev),"","minus"):"")+
     L("Client revenue",usd(r.rev,2),usd(r.rev*12),r.rev?"100.0%":"–","sub")+
-    L(`Consultant cost <span style="color:var(--muted)">(${hrs(r.deliv)} hrs/mo × ${usd(S.cost,2)})</span>`,neg(r.costM),negA(r.costM),sh(r.costM),"minus")+
+    (S.useTeam
+      ?(()=>{const tot=S.team.reduce((a,x)=>a+(+x.share||0),0)||1;return S.team.map(x=>{const sh_=(+x.share||0)/tot,c=(+x.cost||0)*r.deliv*sh_;
+          return L(`${esc(x.name||"Role")} <span style="color:var(--muted)">(${Math.round(sh_*100)}% · ${hrs(r.deliv*sh_)} hrs/mo × ${usd(+x.cost||0,2)})</span>`,neg(c),negA(c),sh(c),"minus")}).join("")})()
+      :L(`Consultant cost <span style="color:var(--muted)">(${hrs(r.deliv)} hrs/mo × ${usd(S.cost,2)})</span>`,neg(r.costM),negA(r.costM),sh(r.costM),"minus"))+
     L("Gross profit",usd(r.gp,2),usd(r.gp*12),sh(r.gp),"sub")+
     L("Overhead",neg(r.ovhM),negA(r.ovhM),sh(r.ovhM),"minus")+
     L("Contribution (what you keep)",usd(r.contrib,2),usd(r.contrib*12),sh(r.contrib),"sub")+
@@ -608,7 +719,7 @@ function renderCalc(){
 function drawChart(r){
   // Monthly revenue and contribution at every weekly hour level, priced at the tier rates
   const W=640,H=280,p={l:58,r:16,t:30,b:44}, t=S.tiers, x0=5, x1=40, pts=[];
-  for(let h=x0;h<=x1+1e-9;h+=0.5){const c=calc(h,S.cost,S.util,"");pts.push([h,c.rev,c.contrib])}
+  for(let h=x0;h<=x1+1e-9;h+=0.5){const c=calc(h,S.cost,S.util,"",termDisc());pts.push([h,c.rev,c.contrib])}
   const ymaxRaw=Math.max(...pts.map(q=>q[1]),1), step=ymaxRaw>40000?10000:ymaxRaw>16000?5000:2500, ymax=Math.ceil(ymaxRaw/step)*step;
   const X=h=>p.l+(h-x0)/(x1-x0)*(W-p.l-p.r), Y=v=>p.t+(1-v/ymax)*(H-p.t-p.b);
   const k=v=>v>=1000?"$"+(v/1000).toFixed(v%1000?1:0)+"k":"$"+v;
@@ -624,9 +735,9 @@ function drawChart(r){
   // dips: where a bigger commitment pays less per month than the top of the tier below
   const dips=[];
   for(let i=1;i<t.length;i++){const a=t[i-1],b=t[i], hp=Math.min(a.max,b.min-0.5), hb=b.min;
-    const ra=calc(hp,S.cost,S.util,"").rev, rb=calc(hb,S.cost,S.util,"").rev;
+    const ra=calc(hp,S.cost,S.util,"",termDisc()).rev, rb=calc(hb,S.cost,S.util,"",termDisc()).rev;
     if(rb<ra-0.5) dips.push({a,b,hp,hb,loss:ra-rb,fix:Math.ceil(a.rate*hp/hb),even:a.rate*hp/b.rate})}
-  const dipMarks=dips.map(d=>`<circle cx="${X(d.hb)}" cy="${Y(calc(d.hb,S.cost,S.util,"").rev)}" r="7" fill="none" stroke="var(--bad)" stroke-width="2"/>`).join("");
+  const dipMarks=dips.map(d=>`<circle cx="${X(d.hb)}" cy="${Y(calc(d.hb,S.cost,S.util,"",termDisc()).rev)}" r="7" fill="none" stroke="var(--bad)" stroke-width="2"/>`).join("");
   const cur=Math.min(x1,Math.max(x0,S.hours));
   $("chart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Monthly revenue and contribution by weekly contracted hours at your tier rates">
     ${g}
@@ -777,7 +888,7 @@ $("addClient").addEventListener("click",()=>{S.clients.push({name:"New client",h
 armed($("clearClients"),"Click again to clear",()=>{const old=S.clients;S.clients=[];update();toast("Cleared all clients","Undo",()=>{S.clients=old;update()})});
 $("addRow").addEventListener("click",()=>{const last=S.cmp[S.cmp.length-1];S.cmp.push({hours:last?Math.min((+last.hours||0)+5,40):20,cost:"",rate:""});update();$("cmp-hours-"+(S.cmp.length-1)).focus()});
 armed($("resetRows"),"Click again to reset",()=>{S.cmp=clone(DEFAULTS.cmp);$("cmp").dataset.n="";update()});
-armed($("reset"),"Click again to reset",()=>{["hours","rateOv","cost","ovh","target","util","weeks","round"].forEach(k=>S[k]=DEFAULTS[k]);S.tiers=clone(DEFAULTS.tiers);syncInputs();buildTiers();update();toast("Settings reset to defaults")});
+armed($("reset"),"Click again to reset",()=>{["hours","rateOv","cost","ovh","target","util","weeks","round","term","useTeam","costSingle"].forEach(k=>S[k]=DEFAULTS[k]);S.tiers=clone(DEFAULTS.tiers);S.disc=clone(DEFAULTS.disc);S.team=clone(DEFAULTS.team);$("in-disc").value=0;buildTeam();syncInputs();buildTiers();update();toast("Settings reset to defaults")});
 
 
 /* ---------- market data: researched snapshot (Oct 22, 2026), editable and saved in this browser ---------- */
@@ -861,7 +972,7 @@ function buildMarket(){
     toast(`Removed ${gone.name||"row"}`,"Undo",()=>{S.mkt[sec].splice(i,0,gone);buildMarket();update()});
   }));
   document.querySelectorAll("#view-market [data-usecost]").forEach(btn=>btn.onclick=()=>{
-    const x=S.mkt.modules[+btn.dataset.usecost]; S.cost=+x.mid; syncInputs(); update(); toast(`1099 cost set to ${money(x.mid)}/hr (${x.name} median)`);
+    const x=S.mkt.modules[+btn.dataset.usecost]; if(S.useTeam){S.useTeam=false;buildTeam()} S.cost=+x.mid; syncInputs(); update(); toast(`1099 cost set to ${money(x.mid)}/hr (${x.name} median)`);
   });
 }
 function trackHTML(r,scale,you,isCost){
@@ -878,7 +989,7 @@ function renderMarket(){
   M.cost.forEach((x,i)=>{set("trk-cost-"+i,trackHTML(x,COST_SCALE,cost,true)); if($("val-cost-"+i)) set("val-cost-"+i,rangeText(x))});
   M.billModules.forEach((x,i)=>{
     const mod=M.modules.find(m=>m.name.trim().toLowerCase()===String(x.name).trim().toLowerCase()), c=mod&&num(mod.mid)!=null?+mod.mid:S.cost;
-    const floor=S.target<1?(c+S.ovh)*S.util/(1-S.target):0;
+    const floor=S.target<1?(c+S.ovh)*S.util/((1-S.target)*(1-termDisc())):0;
     set("trk-bm-"+i,trackHTML({lo:x.lo,hi:x.hi,mid:floor},BILL_SCALE,rate,false).replace('class="mid"',`class="mid" title="Lowest rate for ${pctT(S.target)} target with a ${money(c)} consultant: ${usd(floor)}"`));
     if($("val-bm-"+i)) set("val-bm-"+i,`${rangeText({lo:x.lo,hi:x.hi})}<small class="floor-note">Floor ${usd(floor)}</small>`);
   });
@@ -918,6 +1029,31 @@ document.querySelectorAll("[data-add]").forEach(b=>b.addEventListener("click",()
 armed($("mktReset"),"Click again to reset",()=>{S.mkt=clone(MKT_DEFAULT);buildMarket();update();toast("Market data reset to the researched snapshot")});
 
 const VIEWS=["calc","market","tiers","portfolio"];
+/* backup & restore */
+function backupText(){return JSON.stringify({app:"catalyst-ams-calculator",version:1,saved:new Date().toISOString(),data:S},null,1)}
+function restoreFrom(text){
+  let o; try{o=JSON.parse(text)}catch(e){toast("That isn't a valid backup. Check you copied all of it.");return}
+  const d=o&&o.data?o.data:o;
+  if(!d||!Array.isArray(d.tiers)){toast("That file doesn't look like a calculator backup.");return}
+  const old=clone(S);
+  S=Object.assign(clone(DEFAULTS),d); if(!S.mkt||!Array.isArray(S.mkt.bill)) S.mkt=clone(MKT_DEFAULT); if(!Array.isArray(S.mkt.billModules)) S.mkt.billModules=clone(MKT_DEFAULT.billModules);
+  rebuildAll(); toast("Backup restored","Undo",()=>{S=old;rebuildAll()});
+}
+function rebuildAll(){$("in-disc").value=+((S.disc[S.term]||0)*100).toFixed(1);buildTeam();buildTiers();$("cmp").dataset.n="";$("port").dataset.n="";buildMarket();syncInputs();update();show(VIEWS.includes(S.view)?S.view:"calc")}
+$("backupToggle").addEventListener("click",()=>{const p=$("backupPanel");p.hidden=!p.hidden;$("backupToggle").setAttribute("aria-expanded",String(!p.hidden))});
+$("backupClose").addEventListener("click",()=>{$("backupPanel").hidden=true;$("backupToggle").setAttribute("aria-expanded","false")});
+$("bkDownload").addEventListener("click",()=>{
+  try{const blob=new Blob([backupText()],{type:"application/json"}),a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);a.download=`catalyst-ams-backup-${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);toast("Backup file downloaded")}catch(e){toast("Download didn't work here. Use Copy backup text instead.")}
+});
+$("bkCopy").addEventListener("click",()=>{const t=backupText();
+  const ok=()=>toast("Backup copied. Paste it somewhere safe."), fb=()=>{$("bkText").value=t;$("bkText").select();toast("Couldn't copy automatically. The text is selected in the box; copy it from there.")};
+  try{navigator.clipboard.writeText(t).then(ok,fb)}catch(e){fb()}});
+$("bkPick").addEventListener("click",()=>$("bkFile").click());
+$("bkFile").addEventListener("change",()=>{const f=$("bkFile").files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>restoreFrom(String(rd.result));rd.readAsText(f);$("bkFile").value=""});
+$("bkRestoreText").addEventListener("click",()=>{const t=$("bkText").value.trim();if(!t){toast("Paste backup text first");return}restoreFrom(t);$("bkText").value=""});
+
 function show(v){
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.view===v)));
   VIEWS.forEach(k=>$("view-"+k).hidden=k!==v);
