@@ -188,6 +188,37 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:9px;font-weight:600;font-size:14px;pointer-events:none;transition:opacity .2s,transform .2s;z-index:40;max-width:calc(100% - 32px)}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 .toast .link{color:var(--accent-soft);margin-left:10px}
+
+/* market data */
+.mkt-insights{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-top:16px}
+.ins{border-radius:10px;padding:12px 14px;background:var(--surface-2);border:1px solid var(--line)}
+.ins .k{font-size:12.5px;color:var(--muted);font-weight:600}
+.ins .v{font:700 19px var(--f-display);margin:3px 0 2px}
+.ins .d{font-size:13px;color:var(--muted);line-height:1.4}
+.ins.good{background:var(--good-bg);border-color:transparent}.ins.good .v{color:var(--good)}
+.ins.warn{background:var(--warn-bg);border-color:transparent}.ins.warn .v{color:var(--warn)}
+.ranges{display:grid;gap:4px}
+.rrow{display:grid;grid-template-columns:minmax(0,210px) minmax(0,1fr) 112px;gap:14px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.rrow:last-child{border-bottom:0}
+.rrow .lab b{display:block;font-size:14px}
+.rrow .lab span{font-size:12px;color:var(--muted)}
+.rrow .val{text-align:right;font-weight:700;font-size:14px;white-space:nowrap}
+.track{position:relative;height:26px}
+.track::before{content:"";position:absolute;left:0;right:0;top:12px;height:2px;background:var(--grid)}
+.band{position:absolute;top:6px;height:14px;border-radius:7px;background:color-mix(in srgb,var(--navy-2) 38%,transparent)}
+.mid{position:absolute;top:3px;width:3px;height:20px;border-radius:2px;background:var(--navy-2)}
+.you{position:absolute;top:-2px;bottom:-2px;width:3px;border-radius:2px;background:#f0a500;z-index:2}
+.axis{position:relative;height:18px;margin-left:224px;margin-right:126px;font-size:11.5px;color:var(--muted)}
+.axis span{position:absolute;transform:translateX(-50%)}
+.legend-mini{display:flex;gap:6px 14px;align-items:center;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+.legend-mini i{display:inline-block;margin-right:5px;vertical-align:-1px}
+.lm-band{width:18px;height:9px;border-radius:5px;background:color-mix(in srgb,var(--navy-2) 38%,transparent)}
+.lm-mid{width:3px;height:12px;background:var(--navy-2)}
+.lm-you{width:3px;height:12px;background:#f0a500}
+#mktModules th:nth-child(2),#mktModules td:nth-child(2){text-align:left}
+.sources{margin:0;padding-left:18px;display:grid;gap:6px;font-size:13.5px;color:var(--muted)}
+.sources a{color:var(--ink);font-weight:600}
+@media (max-width:640px){.rrow{grid-template-columns:minmax(0,1fr) 90px}.rrow .track{grid-column:1 / -1;order:3}.axis{margin-left:0;margin-right:0}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 <style>body{margin:0}img{max-width:100%}</style>
@@ -209,6 +240,7 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
 
   <nav class="tabs" role="tablist" aria-label="Views">
     <button role="tab" id="tab-calc" aria-selected="true" data-view="calc" type="button">Calculator</button>
+    <button role="tab" id="tab-market" aria-selected="false" data-view="market" type="button">Market data</button>
     <button role="tab" id="tab-tiers" aria-selected="false" data-view="tiers" type="button">Tiers &amp; scenarios</button>
     <button role="tab" id="tab-portfolio" aria-selected="false" data-view="portfolio" type="button">Client portfolio</button>
   </nav>
@@ -275,6 +307,43 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
       <div class="card-head"><h2>Monthly P&amp;L</h2></div>
       <p class="note" id="pnlDeal" style="margin:0 0 14px"></p>
       <div class="scroll"><table class="pl" id="pl"></table></div>
+    </div>
+  </section>
+
+  <section id="view-market" class="stack" role="tabpanel" aria-labelledby="tab-market" hidden>
+    <div class="card">
+      <div class="card-head"><h2>Market data</h2><span class="pill neutral plain">Snapshot as of Oct 22, 2026</span></div>
+      <p class="note" style="margin:0">Published 2026 rate data for US Workday consulting, compared against the deal on the Calculator tab. Firms don't publish AMS rate cards, so these are the closest public benchmarks. The tab shows a dated snapshot; ask Claude to refresh it.</p>
+      <div class="mkt-insights" id="mktInsights"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>What clients pay per hour</h2><span class="legend-mini"><i class="lm-band"></i>Market range <i class="lm-you"></i>Your rate</span></div>
+      <div class="ranges" id="mktBill"></div>
+      <p class="note">Blended partner rates are averages across a project team. Staffing agency range is a $92/hr consultant plus the typical 40–100% markup. AMS deals are also often priced as 20–30% of the implementation fee per year.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>What a 1099 consultant charges you</h2><span class="legend-mini"><i class="lm-band"></i>Middle 50% <i class="lm-mid"></i>Median <i class="lm-you"></i>Your cost</span></div>
+      <div class="ranges" id="mktCost"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>1099 rates by Workday module</h2><span class="pill neutral plain">Independent consultants, USD/hr</span></div>
+      <div class="scroll"><table id="mktModules" class="sticky-first"></table></div>
+      <p class="note">Rates consultants set for themselves on Turbin (vetted Workday specialists), before platform fees. Click <b>Use median</b> to set that rate as your 1099 cost in Deal settings.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Sources</h2></div>
+      <ul class="sources">
+        <li><a href="https://turbin.ai/guides/workday-consultant-rate-report/" target="_blank" rel="noopener">Turbin, Workday consultant rate report</a>: independent rates by module, seniority and country (data as of Oct 2, 2026)</li>
+        <li><a href="https://turbin.ai/guides/workday-consultant-hourly-rates/" target="_blank" rel="noopener">Turbin, What does a Workday consultant cost?</a>: staffing agency markup of 40–100% (Oct 2026)</li>
+        <li><a href="https://www.kore1.com/workday-hcm-consultant-salary-guide/" target="_blank" rel="noopener">KORE1, Workday HCM consultant salary guide 2026</a>: independent contractor $85–$175/hr, hypercare $85–$130/hr (Aug 2026)</li>
+        <li><a href="https://vendorbenchmark.com/blog/workday-implementation-cost-benchmark" target="_blank" rel="noopener">VendorBenchmark, Workday implementation cost benchmarks 2026</a>: blended partner rates by tier (Mar 2026)</li>
+        <li><a href="https://redresscompliance.com/workday-implementation-cost-2026" target="_blank" rel="noopener">Redress Compliance, Workday implementation cost 2026</a>: SI rates by role and location (Sep 2026)</li>
+        <li><a href="https://assistnow.com/blog/workday-implementation-cost-2026" target="_blank" rel="noopener">AssistNow, Workday implementation cost in 2026</a>: AMS at 20–30% of implementation fee per year (vendor-published, Jun 2026)</li>
+      </ul>
     </div>
   </section>
 
@@ -606,8 +675,73 @@ function renderPort(){
     K("Blended margin",S.clients.length?pct(tm):"–")+K("Consultants needed",(tot.h*S.util/40).toFixed(2)+" FTE");
 }
 
+
+/* ---------- market data (snapshot: Oct 22, 2026; sources listed on the tab) ---------- */
+const MKT={
+  bill:[
+    {name:"Boutique / niche partner",sub:"Blended team rate",lo:120,hi:160},
+    {name:"Mid-tier partner",sub:"e.g. Mercer, NGA HR",lo:140,hi:180},
+    {name:"Staffing agency",sub:"$92 consultant + 40–100%",lo:129,hi:184},
+    {name:"Big 4 / global SI",sub:"Blended team rate",lo:200,hi:280},
+    {name:"SI consultant, onshore",sub:"Single role rate",lo:180,hi:280}
+  ],
+  cost:[
+    {name:"All Workday independents",sub:"Middle 50%, median $92",lo:75,mid:92,hi:120},
+    {name:"US-based independents",sub:"Median",lo:null,mid:100,hi:null},
+    {name:"Under 5 yrs Workday",sub:"Median",mid:80},
+    {name:"5–7 yrs",sub:"Median",mid:90},
+    {name:"8–11 yrs",sub:"Median",mid:108},
+    {name:"12+ yrs",sub:"Median",mid:105},
+    {name:"Independent contractor range",sub:"KORE1 2026",lo:85,hi:175},
+    {name:"Hypercare / stabilization",sub:"Closest to AMS work",lo:85,hi:130}
+  ],
+  modules:[
+    ["HCM","Core HCM",65,80,110,90],["HCM","Absence",60,80,100],["HCM","Time Tracking",60,80,105],["HCM","Benefits",65,85,109,105],
+    ["HCM","Compensation",70,85,119,118],["HCM","Recruiting",70,85,110],["HCM","Talent & Performance",80,95,120,120],["HCM","Learning",78,90,108,120],
+    ["HCM","Payroll (US/Canada)",80,90,115,120],["Technical","Integrations",60,80,100],["Technical","Studio",80,95,120],["Technical","Security",80,92,118],
+    ["Technical","Reporting",65,85,115],["Technical","Prism Analytics",60,80,108],["Financials","Core Finance",80,100,130],["Financials","Procurement",90,105,125],
+    ["Financials","Expenses",98,120,130],["Financials","FDM",95,120,149],["Planning","Adaptive Planning",80,125,135],["Other","Project Management",60,105,125]
+  ]
+};
+function rangeRows(rows,min,max,you,isCost){
+  const X=v=>((v-min)/(max-min)*100).toFixed(2)+"%";
+  const yv=Math.min(max,Math.max(min,you));
+  return rows.map(r=>{
+    const band=r.lo!=null&&r.hi!=null?`<div class="band" style="left:${X(r.lo)};width:calc(${X(r.hi)} - ${X(r.lo)})"></div>`:"";
+    const mid=r.mid!=null?`<div class="mid" style="left:calc(${X(r.mid)} - 1px)"></div>`:"";
+    const val=r.lo!=null&&r.hi!=null?`$${r.lo}–$${r.hi}`:`$${r.mid}`;
+    return `<div class="rrow"><div class="lab"><b>${r.name}</b><span>${r.sub}</span></div><div class="track">${band}${mid}<div class="you" style="left:calc(${X(yv)} - 1px)" title="${isCost?"Your cost":"Your rate"} ${usd(you)}"></div></div><div class="val">${val}</div></div>`}).join("")+
+    `<div class="axis">${[0,.25,.5,.75,1].map(f=>`<span style="left:${f*100}%">$${Math.round(min+(max-min)*f)}</span>`).join("")}</div>`;
+}
+function renderMarket(){
+  const r=mainCalc(), rate=r.rate, cost=S.cost;
+  $("mktBill").innerHTML=rangeRows(MKT.bill,80,300,rate,false);
+  $("mktCost").innerHTML=rangeRows(MKT.cost,40,180,cost,true);
+  // insights
+  const b=MKT.bill, inR=b.filter(x=>rate>=x.lo&&rate<=x.hi).map(x=>x.name.split(" /")[0].replace(" partner","").toLowerCase());
+  const ratePos=!rate?["–","Set a rate on the Calculator tab.",""]:
+    rate>b[0].hi&&rate<200?[`${usd(rate)}/hr`,`Above boutique rates (${"$120–$160"}) and ${rate<=180?"inside the mid-tier range ($140–$180)":"above mid-tier ($140–$180)"}. Still well under Big 4 ($200+).`,rate<=180?"good":"warn"]:
+    rate>=200?[`${usd(rate)}/hr`,"Priced like a Big 4 firm. Expect pushback from mid-market clients.","warn"]:
+    [`${usd(rate)}/hr`,`Inside ${inR.length?inR.join(" and ")+" range":"the low end of the market"}. Room to price higher if clients see you as a specialist.`,"good"];
+  const c=MKT.cost[0], costPos=cost<c.lo?["Low end","below the middle 50%"]:cost<c.mid?["Below median","between the 25th percentile and median"]:cost<=c.hi?["Above median","between the median and 75th percentile"]:["Top quarter","above the 75th percentile"];
+  const bMid=(b[0].lo+b[1].hi)/2, mktMargin=(bMid-c.mid)/bMid;
+  const I=(k,v,d,cls="")=>`<div class="ins ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
+  $("mktInsights").innerHTML=
+    I("Your client rate",ratePos[0],ratePos[1],ratePos[2])+
+    I("Your 1099 cost",`${usd(cost)}/hr · ${costPos[0]}`,`${costPos[1]} for Workday independents ($75–$120, median $92; US median $100).`,cost>c.hi?"warn":"")+
+    I("Typical market spread",`${pct(mktMargin)} margin`,`A median $92 consultant billed at ${usd(bMid)}/hr (boutique/mid-tier midpoint). Yours: <b>${pct(r.margin)}</b>.`,r.margin>=mktMargin?"good":"warn");
+  // modules table (built once; buttons rebound each time)
+  if(!$("mktModules").dataset.built){
+    $("mktModules").innerHTML=`<thead><tr><th>Module</th><th>Area</th><th>Middle 50%</th><th>Median</th><th>Certified median</th><th>Margin at your rate</th><th></th></tr></thead><tbody>`+
+      MKT.modules.map((m,i)=>`<tr><td><b>${m[1]}</b></td><td style="color:var(--muted)">${m[0]}</td><td>$${m[2]}–$${m[4]}</td><td><b>$${m[3]}</b></td><td>${m[5]?"$"+m[5]:"–"}</td><td id="mm-${i}"></td><td><button class="btn small" type="button" data-usecost="${m[3]}" data-mod="${m[1]}">Use median</button></td></tr>`).join("")+`</tbody>`;
+    $("mktModules").dataset.built="1";
+    $("mktModules").querySelectorAll("[data-usecost]").forEach(btn=>btn.onclick=()=>{S.cost=+btn.dataset.usecost;syncInputs();update();toast(`1099 cost set to $${btn.dataset.usecost}/hr (${btn.dataset.mod} median)`)});
+  }
+  MKT.modules.forEach((m,i)=>{const mg=rate?(rate-m[3]-S.ovh)/rate:0; set("mm-"+i,!rate?"–":`<span class="pill ${mg>=S.target-1e-9?"good":"bad"}">${pct(mg)}</span>`)});
+}
+
 /* glue */
-function render(){renderCalc();renderTiers();renderCmp();renderPort()}
+function render(){renderCalc();renderMarket();renderTiers();renderCmp();renderPort()}
 function update(){save();render()}
 
 let tTimer;
@@ -642,7 +776,7 @@ $("copyQuote").addEventListener("click",()=>{
   try{navigator.clipboard.writeText(text).then(done,fallback)}catch(e){fallback()}
 });
 
-const VIEWS=["calc","tiers","portfolio"];
+const VIEWS=["calc","market","tiers","portfolio"];
 function show(v){
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.view===v)));
   VIEWS.forEach(k=>$("view-"+k).hidden=k!==v);
