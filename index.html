@@ -217,6 +217,8 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
 .lm-you{width:3px;height:12px;background:#f0a500}
 #mktModules th:nth-child(2),#mktModules td:nth-child(2){text-align:left}
 .market:not(.editing) .edit-only{display:none}
+.market .card-head .legend-mini{margin-left:auto;order:2}
+.market .card-head .actions{order:3}
 .rrow.editing{grid-template-columns:minmax(0,230px) minmax(0,1fr) auto}
 .rrow .lab .cell{width:100%;display:block}
 .rrow .lab .cell.sub{margin-top:4px;font-weight:500;font-size:12.5px;padding:4px 8px}
@@ -327,24 +329,24 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
     </div>
 
     <div class="card">
-      <div class="card-head"><h2>What clients pay per hour</h2><button class="btn small edit-only" type="button" data-add="bill">+ Add row</button><span class="legend-mini"><i class="lm-band"></i>Market range <i class="lm-you"></i>Your rate</span></div>
+      <div class="card-head"><h2>What clients pay per hour</h2><div class="actions"><button class="btn small" type="button" data-edit-toggle>Edit</button><button class="btn small edit-only" type="button" data-add="bill">+ Add row</button></div><span class="legend-mini"><i class="lm-band"></i>Market range <i class="lm-you"></i>Your rate</span></div>
       <div class="ranges" id="mktBill"></div>
       <p class="note">Blended partner rates are averages across a project team. Staffing agency range is a $92/hr consultant plus the typical 40–100% markup. AMS deals are also often priced as 20–30% of the implementation fee per year.</p>
     </div>
 
     <div class="card">
-      <div class="card-head"><h2>What a 1099 consultant charges you</h2><button class="btn small edit-only" type="button" data-add="cost">+ Add row</button><span class="legend-mini"><i class="lm-band"></i>Middle 50% <i class="lm-mid"></i>Median <i class="lm-you"></i>Your cost</span></div>
+      <div class="card-head"><h2>What a 1099 consultant charges you</h2><div class="actions"><button class="btn small" type="button" data-edit-toggle>Edit</button><button class="btn small edit-only" type="button" data-add="cost">+ Add row</button></div><span class="legend-mini"><i class="lm-band"></i>Middle 50% <i class="lm-mid"></i>Median <i class="lm-you"></i>Your cost</span></div>
       <div class="ranges" id="mktCost"></div>
     </div>
 
     <div class="card">
-      <div class="card-head"><h2>1099 rates by Workday module</h2><div class="actions"><button class="btn small edit-only" type="button" data-add="modules">+ Add module</button><span class="pill neutral plain">Independent consultants, USD/hr</span></div></div>
+      <div class="card-head"><h2>1099 rates by Workday module</h2><div class="actions"><button class="btn small" type="button" data-edit-toggle>Edit</button><button class="btn small edit-only" type="button" data-add="modules">+ Add module</button><span class="pill neutral plain">Independent consultants, USD/hr</span></div></div>
       <div class="scroll"><table id="mktModules" class="sticky-first"></table></div>
       <p class="note">Rates consultants set for themselves on Turbin (vetted Workday specialists), before platform fees. Click <b>Use median</b> to set that rate as your 1099 cost in Deal settings.</p>
     </div>
 
     <div class="card">
-      <div class="card-head"><h2>Client rates by Workday module</h2><button class="btn small edit-only" type="button" data-add="billModules">+ Add row</button><span class="legend-mini"><i class="lm-band"></i>Estimated client range <i class="lm-mid"></i>Lowest rate for your target <i class="lm-you"></i>Your rate</span></div>
+      <div class="card-head"><h2>Client rates by Workday module</h2><div class="actions"><button class="btn small" type="button" data-edit-toggle>Edit</button><button class="btn small edit-only" type="button" data-add="billModules">+ Add row</button></div><span class="legend-mini"><i class="lm-band"></i>Estimated client range <i class="lm-mid"></i>Lowest rate for your target <i class="lm-you"></i>Your rate</span></div>
       <div class="ranges" id="mktBillMod"></div>
       <p class="note">Estimates: no source publishes client rates by module, so each range is that module's median 1099 rate plus the typical 40–100% agency markup, rounded to $5. The navy tick is the lowest rate that hits your target margin if you pay that module's median 1099 rate. Edit any range once you have real quotes.</p>
     </div>
@@ -414,6 +416,7 @@ if(!S||!Array.isArray(S.tiers)) S=clone(DEFAULTS);
 for(const k in DEFAULTS) if(S[k]===undefined) S[k]=clone(DEFAULTS[k]);
 S.util=1; // hours delivered always equal contracted hours
 S.target=DEFAULTS.target; // always open at the default 30% target
+S.cost=DEFAULTS.cost; // always open at the default $105 1099 cost
 S.hours=Math.min(40,Math.max(5,+S.hours||20));
 if(S.rateOv!==""&&S.rateOv!=null) S.rateOv=Math.min(200,Math.max(75,+S.rateOv));
 if(!S.v){if(S.target===0.35)S.target=0.30;S.v=2} // one-time move from the old 35% default
@@ -789,6 +792,7 @@ function buildMarket(){
   $("view-market").classList.toggle("editing",mktEditing);
   $("mktEditToggle").textContent=mktEditing?"Done editing":"Edit market data";
   $("mktEditToggle").classList.toggle("primary",mktEditing);
+  document.querySelectorAll("[data-edit-toggle]").forEach(b=>{b.textContent=mktEditing?"Done editing":"Edit";b.classList.toggle("primary",mktEditing)});
   buildRanges("bill",BILL_SCALE,false); buildRanges("cost",COST_SCALE,true); buildModules(); buildBillModules();
   document.querySelectorAll("#view-market input[data-sec]").forEach(inp=>inp.addEventListener("input",()=>{
     const row=S.mkt[inp.dataset.sec][+inp.dataset.i], f=inp.dataset.f;
@@ -842,6 +846,12 @@ function renderMarket(){
     I("Typical market spread",spread==null?"–":`${pct(spread)} margin`,spread==null?"Needs at least one client range and a cost median.":`A ${money(ref.mid)} consultant billed at ${usd(bMid)}/hr (midpoint of ${list(pair.map(x=>x.name))}). Yours: <b>${pct(r.margin)}</b>.`,spread==null?"":r.margin>=spread?"good":"warn");
 }
 $("mktEditToggle").addEventListener("click",()=>{mktEditing=!mktEditing;buildMarket();render()});
+// per-card Edit buttons: switch edit mode and keep that card where it was on screen
+document.querySelectorAll("[data-edit-toggle]").forEach(b=>b.addEventListener("click",()=>{
+  const card=b.closest(".card"), top=card.getBoundingClientRect().top;
+  mktEditing=!mktEditing; buildMarket(); render();
+  window.scrollBy(0,card.getBoundingClientRect().top-top);
+}));
 document.querySelectorAll("[data-add]").forEach(b=>b.addEventListener("click",()=>{
   const sec=b.dataset.add, blankRow=sec==="bill"?{name:"New source",sub:"",lo:"",hi:""}:sec==="billModules"?{area:"",name:"New module",lo:"",hi:""}:sec==="cost"?{name:"New source",sub:"",lo:"",mid:"",hi:""}:{area:"",name:"New module",lo:"",mid:"",hi:"",cert:""};
   S.mkt[sec].push(blankRow); buildMarket(); update();
