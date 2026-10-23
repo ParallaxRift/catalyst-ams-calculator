@@ -305,7 +305,7 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
 
 <script>
 const DEFAULTS = {
-  hours:20, cost:105, ovh:0, target:0.35, util:1, weeks:52, round:50,
+  hours:20, cost:105, ovh:0, target:0.30, util:1, weeks:52, round:50,
   tiers:[{name:"Small",min:5,max:20,rate:189},{name:"Mid",min:21,max:29,rate:179},{name:"Large",min:30,max:40,rate:169}],
   cmp:[5,10,15,20,25,30,35,40].map(h=>({hours:h,cost:"",rate:""})),
   clients:[{name:"Example client A",hours:20,cost:""},{name:"Example client B",hours:30,cost:""},{name:"Example client C",hours:12,cost:115}],
@@ -316,6 +316,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 if(!S||!Array.isArray(S.tiers)) S=clone(DEFAULTS);
 for(const k in DEFAULTS) if(S[k]===undefined) S[k]=clone(DEFAULTS[k]);
+if(!S.v){if(S.target===0.35)S.target=0.30;S.v=2} // one-time move from the old 35% default
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 
 const $=id=>document.getElementById(id);
@@ -577,7 +578,7 @@ $("addClient").addEventListener("click",()=>{S.clients.push({name:"New client",h
 armed($("clearClients"),"Click again to clear",()=>{const old=S.clients;S.clients=[];update();toast("Cleared all clients","Undo",()=>{S.clients=old;update()})});
 $("addRow").addEventListener("click",()=>{const last=S.cmp[S.cmp.length-1];S.cmp.push({hours:last?Math.min((+last.hours||0)+5,40):20,cost:"",rate:""});update();$("cmp-hours-"+(S.cmp.length-1)).focus()});
 armed($("resetRows"),"Click again to reset",()=>{S.cmp=clone(DEFAULTS.cmp);$("cmp").dataset.n="";update()});
-armed($("reset"),"Click again to reset",()=>{["hours","cost","ovh","target","util","weeks","round"].forEach(k=>S[k]=DEFAULTS[k]);S.tiers=clone(DEFAULTS.tiers);syncInputs();buildTiers();update();toast("Settings reset to V1 defaults")});
+armed($("reset"),"Click again to reset",()=>{["hours","cost","ovh","target","util","weeks","round"].forEach(k=>S[k]=DEFAULTS[k]);S.tiers=clone(DEFAULTS.tiers);syncInputs();buildTiers();update();toast("Settings reset to defaults")});
 
 $("copyQuote").addEventListener("click",()=>{
   const r=calc(S.hours);
