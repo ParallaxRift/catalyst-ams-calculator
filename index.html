@@ -239,6 +239,29 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
 .sources{margin:0;padding-left:18px;display:grid;gap:6px;font-size:13.5px;color:var(--muted)}
 .sources a{color:var(--ink);font-weight:600}
 @media (max-width:640px){.rrow{grid-template-columns:minmax(0,1fr) 90px}.rrow .track{grid-column:1 / -1;order:3}.axis{margin-left:0;margin-right:0}}
+
+/* ---- alignment pass ---- */
+#calcAlert:empty{display:none}
+/* tables: text, inputs and badges centered under centered headers; money right-aligned; first column left */
+#tierTable th:not(:first-child),#tierTable td:not(:first-child){text-align:center}
+#cmp th:nth-child(2),#cmp td:nth-child(2),#cmp th:nth-child(3),#cmp td:nth-child(3),#cmp th:nth-child(4),#cmp td:nth-child(4),
+#cmp th:nth-child(11),#cmp td:nth-child(11),#cmp td:nth-child(12){text-align:center}
+#port th:nth-child(2),#port td:nth-child(2),#port th:nth-child(3),#port td:nth-child(3),#port th:nth-child(4),#port td:nth-child(4),
+#port th:nth-child(8),#port td:nth-child(8),#port td:nth-child(9){text-align:center}
+#mktModules th:nth-child(7),#mktModules td:nth-child(7),#mktModules th:nth-child(8),#mktModules td:nth-child(8){text-align:center}
+#mktModules th:nth-child(6),#mktModules td:nth-child(6){text-align:right}
+@media (max-width:640px){
+  .tabs{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  .tabs button{padding:8px 6px}
+  .chips{flex-wrap:nowrap}
+  .chips .chip{flex:1 1 0;min-width:0;padding:4px 4px;text-align:center}
+  .pl th:nth-child(4),.pl td:nth-child(4){display:none}
+  .pl{font-size:13px}
+  .pl td:first-child{min-width:0}
+  .pnl-card{padding:16px 14px}
+  .pl th:not(:first-child),.pl td:not(:first-child){width:auto}
+  .pl td,.pl th{padding:9px 6px}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 <style>body{margin:0}img{max-width:100%}</style>
