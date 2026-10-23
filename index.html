@@ -411,7 +411,7 @@ function renderCalc(){
 
   $("ladder").innerHTML=t.map((x,i)=>{
     const end=i<t.length-1?Math.max(x.min,t[i+1].min-1):x.max;
-    return `<div class="rung ${r.tier===x?"on":""}" style="flex-grow:${Math.max(1,end-x.min+1)}"><b>${esc(x.name)}</b><span>${x.min}–${end} hrs</span><span class="r">${usd(x.rate)}/hr</span></div>`}).join("");
+    return `<div class="rung ${r.tier===x?"on":""}"><b>${esc(x.name)}</b><span>${x.min}–${end} hrs</span><span class="r">${usd(x.rate)}/hr</span></div>`}).join("");
   set("ladderNote",r.tier?`${hrs(S.hours)} hrs/week lands in <b>${esc(r.tier.name)}</b>${r.custom?`, but you're quoting a custom ${usd(r.rate)}/hr`:""}. Bigger weekly commitments get a lower hourly rate.`:`${hrs(S.hours)} hrs/week doesn't fit any tier.`);
 
   const G=(k,v,d,bad)=>`<div class="guard ${bad?"bad":""}"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
