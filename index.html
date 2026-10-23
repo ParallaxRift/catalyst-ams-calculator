@@ -451,7 +451,7 @@ const GROUPS=[
   {title:"The deal",fields:[
     {k:"hours",fmtLimit:v=>v+" hrs",label:"Weekly contracted hours",help:"Between 5 and 40 hours per week. This picks the rate tier.",min:5,max:40,step:0.5,clamp:true,suf:"hrs",chips:[10,20,25,30,40],
       set:v=>{const before=tierFor(S.hours);S.hours=v;if(tierFor(v)!==before)S.rateOv=""}},
-    {k:"rate",label:"Hourly client rate",help:"",min:75,max:200,step:1,clamp:true,fmtLimit:v=>"$"+v,pre:"$",suf:"/hr",
+    {k:"rate",tierChips:true,label:"Hourly client rate",help:"",min:75,max:200,step:1,clamp:true,fmtLimit:v=>"$"+v,pre:"$",suf:"/hr",
       get:()=>!blank(S.rateOv)?+S.rateOv:(tierFor(S.hours)?.rate??0),
       set:v=>{const t=tierFor(S.hours);S.rateOv=(t&&v===t.rate)?"":v}}
   ]},
@@ -474,6 +474,7 @@ function buildInputs(){
       <div class="row"><label for="in-${f.k}">${f.label}</label>
         <div class="ig">${f.pre?`<span>${f.pre}</span>`:""}<input id="in-${f.k}" type="number" inputmode="decimal" step="${f.pct?Math.round(f.step*100):f.step}"${f.clamp?` min="${f.min}" max="${f.max}"`:""}>${f.suf?`<span>${f.suf}</span>`:""}</div></div>
       <input type="range" id="rg-${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" aria-label="${f.label} slider">
+      ${f.tierChips?`<div class="chips" role="group" aria-label="Tier rates" id="rateChips"></div>`:""}
       ${f.chips?`<div class="chips" role="group" aria-label="Quick picks">${f.chips.map(c=>`<button class="chip" type="button" data-chip="${c}" data-f="${f.k}">${f.pct?Math.round(c*100)+"%":c+" hrs"}</button>`).join("")}</div>`:""}
       <small id="help-${f.k}">${f.help}</small>
     </div>`).join("")+`</div>`).join("");
@@ -504,6 +505,9 @@ function renderCalc(){
     :`<b>Custom rate.</b> ${r.tier?`The ${esc(r.tier.name)} tier rate is ${usd(tierRate)}. <button class="link" type="button" id="useTier">Use tier rate</button>`:""} Changing hours into another tier switches back to that tier's rate.`);
   const ut=$("useTier"); if(ut) ut.onclick=()=>{S.rateOv="";syncInputs();update()};
   set("calcAlert",!r.tier&&!r.custom?`<div class="alert bad">${hrs(S.hours)} hours/week is outside your tiers (${t[0]?.min}–${t[t.length-1]?.max} hrs), so no rate applies. Pick hours inside a tier, or add a tier on the Tiers tab.</div>`:"");
+  // tier rate buttons under Hourly client rate: same as clicking that tier's box
+  set("rateChips",S.tiers.map((x,i)=>`<button class="chip" type="button" data-tierchip="${i}" aria-pressed="${!r.custom&&r.tier===x}">${esc(x.name)} · ${usd(x.rate)}</button>`).join(""));
+  document.querySelectorAll("[data-tierchip]").forEach(c=>c.onclick=()=>{const box=document.querySelector(`[data-tier="${c.dataset.tierchip}"]`);if(box)box.click()});
   document.querySelectorAll("[data-chip]").forEach(c=>c.setAttribute("aria-pressed",String(Math.abs(+c.dataset.chip-S[c.dataset.f])<1e-9)));
 
   const status=pillMeets(r.rev,r.meets,`Meets ${pctT(S.target)} target`,`Below ${pctT(S.target)} target`);
