@@ -85,6 +85,10 @@ input[type=range]{width:100%;accent-color:var(--slider);margin:0}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{font:600 12.5px var(--f-body);border:1px solid var(--line);background:var(--surface-2);color:var(--ink);padding:4px 10px;border-radius:999px;cursor:pointer}
 .chip:hover{border-color:var(--accent)}
+#rateChips{flex-wrap:nowrap}
+#rateChips .chip{flex:1 1 0;min-width:0;display:grid;gap:0;text-align:center;border-radius:12px;padding:4px 6px;line-height:1.2}
+#rateChips .tc-name{font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rateChips .tc-rate{font-size:13px;font-weight:700}
 .chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent)}
 .rail-foot{display:flex;justify-content:flex-end;margin-top:18px}
 
@@ -506,7 +510,7 @@ function renderCalc(){
   const ut=$("useTier"); if(ut) ut.onclick=()=>{S.rateOv="";syncInputs();update()};
   set("calcAlert",!r.tier&&!r.custom?`<div class="alert bad">${hrs(S.hours)} hours/week is outside your tiers (${t[0]?.min}–${t[t.length-1]?.max} hrs), so no rate applies. Pick hours inside a tier, or add a tier on the Tiers tab.</div>`:"");
   // tier rate buttons under Hourly client rate: same as clicking that tier's box
-  set("rateChips",S.tiers.map((x,i)=>`<button class="chip" type="button" data-tierchip="${i}" aria-pressed="${!r.custom&&r.tier===x}">${esc(x.name)} · ${usd(x.rate)}</button>`).join(""));
+  set("rateChips",S.tiers.map((x,i)=>`<button class="chip" type="button" data-tierchip="${i}" aria-pressed="${!r.custom&&r.tier===x}" title="${esc(x.name)} · ${usd(x.rate)}/hr"><span class="tc-name">${esc(x.name)}</span><span class="tc-rate">${usd(x.rate)}</span></button>`).join(""));
   document.querySelectorAll("[data-tierchip]").forEach(c=>c.onclick=()=>{const box=document.querySelector(`[data-tier="${c.dataset.tierchip}"]`);if(box)box.click()});
   document.querySelectorAll("[data-chip]").forEach(c=>c.setAttribute("aria-pressed",String(Math.abs(+c.dataset.chip-S[c.dataset.f])<1e-9)));
 
