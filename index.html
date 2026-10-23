@@ -120,6 +120,11 @@ input[type=range]{width:100%;accent-color:var(--slider);margin:0}
 .rung span{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rung .r{font:700 15px var(--f-display);color:var(--ink)}
 .rung.on{background:var(--sel);border-color:var(--accent);box-shadow:inset 0 -3px 0 var(--accent)}
+button.rung{font:inherit;color:inherit;text-align:left;cursor:pointer}
+.rung.custom:not(.on){border-style:dashed;background:transparent}
+.rung.custom:not(.on) .r{color:var(--muted);font-size:14px}
+.rung.custom:hover{border-color:var(--accent)}
+@media (max-width:560px){.ladder{display:grid;grid-template-columns:1fr 1fr}}
 .ladder-note{margin-top:10px;font-size:13.5px;color:var(--muted)}
 .link{background:none;border:0;padding:0;color:var(--accent);font:600 13px var(--f-body);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 
@@ -411,7 +416,9 @@ function renderCalc(){
 
   $("ladder").innerHTML=t.map((x,i)=>{
     const end=i<t.length-1?Math.max(x.min,t[i+1].min-1):x.max;
-    return `<div class="rung ${r.tier===x?"on":""}"><b>${esc(x.name)}</b><span>${x.min}–${end} hrs</span><span class="r">${usd(x.rate)}/hr</span></div>`}).join("");
+    return `<div class="rung ${r.tier===x&&!r.custom?"on":""}"><b>${esc(x.name)}</b><span>${x.min}–${end} hrs</span><span class="r">${usd(x.rate)}/hr</span></div>`}).join("")+
+    `<button type="button" class="rung custom ${r.custom?"on":""}" id="customRung" aria-label="Custom rate: set your own hourly rate"><b>Custom</b><span>Any hours</span><span class="r">${r.custom?usd(r.rate)+"/hr":"Set your own"}</span></button>`;
+  $("customRung").onclick=()=>{const b=$("in-rate");b.scrollIntoView({block:"center",behavior:"smooth"});b.focus({preventScroll:true});b.select()};
   set("ladderNote",r.tier?`${hrs(S.hours)} hrs/week lands in <b>${esc(r.tier.name)}</b>${r.custom?`, but you're quoting a custom ${usd(r.rate)}/hr`:""}. Bigger weekly commitments get a lower hourly rate.`:`${hrs(S.hours)} hrs/week doesn't fit any tier.`);
 
   const G=(k,v,d,bad)=>`<div class="guard ${bad?"bad":""}"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
