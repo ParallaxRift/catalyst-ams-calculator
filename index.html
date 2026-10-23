@@ -305,7 +305,7 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
 
 <script>
 const DEFAULTS = {
-  hours:20, cost:105, ovh:0, target:0.30, util:1, weeks:52, round:50,
+  hours:20, rateOv:"", cost:105, ovh:0, target:0.30, util:1, weeks:52, round:50,
   tiers:[{name:"Small",min:5,max:20,rate:189},{name:"Mid",min:21,max:29,rate:179},{name:"Large",min:30,max:40,rate:169}],
   cmp:[5,10,15,20,25,30,35,40].map(h=>({hours:h,cost:"",rate:""})),
   clients:[{name:"Example client A",hours:20,cost:""},{name:"Example client B",hours:30,cost:""},{name:"Example client C",hours:12,cost:115}],
@@ -346,7 +346,11 @@ function calc(h,cost=S.cost,util=S.util,rateOv=""){
 /* deal settings */
 const GROUPS=[
   {title:"The deal",fields:[
-    {k:"hours",label:"Weekly contracted hours",help:"Hours per week the subscription covers. This picks the rate tier.",min:0,max:45,step:0.5,suf:"hrs",chips:[10,20,25,30,40]}
+    {k:"hours",label:"Weekly contracted hours",help:"Hours per week the subscription covers. This picks the rate tier.",min:0,max:45,step:0.5,suf:"hrs",chips:[10,20,25,30,40],
+      set:v=>{const before=tierFor(S.hours);S.hours=v;if(tierFor(v)!==before)S.rateOv=""}},
+    {k:"rate",label:"Hourly rate",help:"",min:100,max:250,step:1,pre:"$",suf:"/hr",
+      get:()=>!blank(S.rateOv)?+S.rateOv:(tierFor(S.hours)?.rate??0),
+      set:v=>{const t=tierFor(S.hours);S.rateOv=(t&&v===t.rate)?"":v}}
   ]},
   {title:"Your costs",fields:[
     {k:"cost",label:"1099 consultant cost",help:"What you pay the contractor per hour worked.",min:50,max:200,step:1,pre:"$",suf:"/hr"},
@@ -366,27 +370,36 @@ function buildInputs(){
         <div class="ig">${f.pre?`<span>${f.pre}</span>`:""}<input id="in-${f.k}" type="number" inputmode="decimal" step="${f.pct?Math.round(f.step*100):f.step}">${f.suf?`<span>${f.suf}</span>`:""}</div></div>
       <input type="range" id="rg-${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" aria-label="${f.label} slider">
       ${f.chips?`<div class="chips" role="group" aria-label="Quick picks">${f.chips.map(c=>`<button class="chip" type="button" data-chip="${c}">${c} hrs</button>`).join("")}</div>`:""}
-      <small>${f.help}</small>
+      <small id="help-${f.k}">${f.help}</small>
     </div>`).join("")+`</div>`).join("");
   FIELDS.forEach(f=>{
     const box=$("in-"+f.k), rg=$("rg-"+f.k);
-    box.addEventListener("input",()=>{const v=parseFloat(box.value);if(isNaN(v))return;S[f.k]=f.pct?v/100:v;rg.value=S[f.k];update()});
-    rg.addEventListener("input",()=>{S[f.k]=parseFloat(rg.value);syncInputs();update()});
+    box.addEventListener("input",()=>{const v=parseFloat(box.value);if(isNaN(v))return;setField(f,f.pct?v/100:v);syncInputs(f.k);update()});
+    rg.addEventListener("input",()=>{setField(f,parseFloat(rg.value));syncInputs();update()});
   });
-  document.querySelectorAll("[data-chip]").forEach(c=>c.addEventListener("click",()=>{S.hours=+c.dataset.chip;syncInputs();update()}));
+  document.querySelectorAll("[data-chip]").forEach(c=>c.addEventListener("click",()=>{setField(FIELDS[0],+c.dataset.chip);syncInputs();update()}));
   syncInputs();
 }
-function syncInputs(){FIELDS.forEach(f=>{const v=S[f.k];$("in-"+f.k).value=f.pct?+(v*100).toFixed(1):v;$("rg-"+f.k).value=v})}
+const getField=f=>f.get?f.get():S[f.k];
+const setField=(f,v)=>f.set?f.set(v):(S[f.k]=v);
+// refresh every box from the data, except the one being typed in (skip) so the cursor never jumps
+function syncInputs(skip){FIELDS.forEach(f=>{const v=getField(f);if(f.k!==skip)$("in-"+f.k).value=f.pct?+(v*100).toFixed(1):v;$("rg-"+f.k).value=v})}
+const mainCalc=(u=S.util)=>calc(S.hours,S.cost,u,S.rateOv);
 
 /* calculator view */
 function renderCalc(){
-  const r=calc(S.hours), t=S.tiers;
-  set("calcAlert",!r.tier?`<div class="alert bad">${hrs(S.hours)} hours/week is outside your tiers (${t[0]?.min}–${t[t.length-1]?.max} hrs), so no rate applies. Pick hours inside a tier, or add a tier on the Tiers tab.</div>`:"");
+  const r=mainCalc(), t=S.tiers, tierRate=r.tier?r.tier.rate:null;
+  if(document.activeElement!==$("in-rate")) syncInputs("__none");
+  set("help-rate",blank(S.rateOv)
+    ?(r.tier?`Follows the <b>${esc(r.tier.name)}</b> tier. Type a different rate to quote a custom price.`:"No tier for these hours. Type a rate to quote one.")
+    :`<b>Custom rate.</b> ${r.tier?`The ${esc(r.tier.name)} tier rate is ${usd(tierRate)}. <button class="link" type="button" id="useTier">Use tier rate</button>`:""} Changing hours into another tier switches back to that tier's rate.`);
+  const ut=$("useTier"); if(ut) ut.onclick=()=>{S.rateOv="";syncInputs();update()};
+  set("calcAlert",!r.tier&&!r.custom?`<div class="alert bad">${hrs(S.hours)} hours/week is outside your tiers (${t[0]?.min}–${t[t.length-1]?.max} hrs), so no rate applies. Pick hours inside a tier, or add a tier on the Tiers tab.</div>`:"");
   document.querySelectorAll("[data-chip]").forEach(c=>c.setAttribute("aria-pressed",String(+c.dataset.chip===S.hours)));
 
   const status=pillMeets(r.rev,r.meets,`Meets ${pct(S.target)} target`,`Below ${pct(S.target)} target`);
   set("q-quote",usd(r.quote)); set("m-quote",usd(r.quote)+'<small style="font-size:12px;opacity:.75"> /mo</small>');
-  set("q-meta",r.tier?`${usd(r.quote*12)} per year · ${esc(r.tier.name)} tier at ${usd(r.rate)}/hr`:"No tier applies");
+  set("q-meta",r.custom?`${usd(r.quote*12)} per year · custom rate ${usd(r.rate)}/hr`:r.tier?`${usd(r.quote*12)} per year · ${esc(r.tier.name)} tier at ${usd(r.rate)}/hr`:"No tier applies");
   set("q-margin",pct(r.margin)); set("q-pill",status); set("m-pill",status);
   set("q-keep",usd(r.contrib)); set("q-annual",usd(r.contrib*12)+" per year");
 
@@ -399,7 +412,7 @@ function renderCalc(){
   $("ladder").innerHTML=t.map((x,i)=>{
     const end=i<t.length-1?Math.max(x.min,t[i+1].min-1):x.max;
     return `<div class="rung ${r.tier===x?"on":""}" style="flex-grow:${Math.max(1,end-x.min+1)}"><b>${esc(x.name)}</b><span>${x.min}–${end} hrs</span><span class="r">${usd(x.rate)}/hr</span></div>`}).join("");
-  set("ladderNote",r.tier?`${hrs(S.hours)} hrs/week lands in <b>${esc(r.tier.name)}</b>. Bigger weekly commitments get a lower hourly rate.`:`${hrs(S.hours)} hrs/week doesn't fit any tier.`);
+  set("ladderNote",r.tier?`${hrs(S.hours)} hrs/week lands in <b>${esc(r.tier.name)}</b>${r.custom?`, but you're quoting a custom ${usd(r.rate)}/hr`:""}. Bigger weekly commitments get a lower hourly rate.`:`${hrs(S.hours)} hrs/week doesn't fit any tier.`);
 
   const G=(k,v,d,bad)=>`<div class="guard ${bad?"bad":""}"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
   $("guards").innerHTML=
@@ -423,7 +436,7 @@ function renderCalc(){
 
 function drawChart(r){
   const W=640,H=250,p={l:44,r:14,t:16,b:44}, xs=[0.5,1.75], pts=[];
-  for(let u=xs[0];u<=xs[1]+1e-9;u+=0.05) pts.push([u,calc(S.hours,S.cost,u).margin]);
+  for(let u=xs[0];u<=xs[1]+1e-9;u+=0.05) pts.push([u,mainCalc(u).margin]);
   let y0=Math.min(...pts.map(q=>q[1]),S.target,0), y1=Math.max(...pts.map(q=>q[1]),S.target);
   y0=Math.floor(y0*10)/10; y1=Math.ceil(y1*10)/10; if(y1<=y0) y1=y0+0.1;
   const X=u=>p.l+(u-xs[0])/(xs[1]-xs[0])*(W-p.l-p.r), Y=m=>p.t+(1-(m-y0)/(y1-y0))*(H-p.t-p.b);
@@ -441,7 +454,7 @@ function drawChart(r){
     <text x="${W-p.r}" y="${Y(S.target)-6}" text-anchor="end" style="fill:var(--accent);font-weight:600">target ${Math.round(S.target*100)}%</text>
     ${beMark}
     <path d="${line}" fill="none" stroke="var(--navy-2)" stroke-width="2.75" stroke-linejoin="round"/>
-    <circle cx="${X(cu)}" cy="${Y(calc(S.hours,S.cost,cu).margin)}" r="6" fill="var(--navy-2)" stroke="var(--surface)" stroke-width="2.5"/>
+    <circle cx="${X(cu)}" cy="${Y(mainCalc(cu).margin)}" r="6" fill="var(--navy-2)" stroke="var(--surface)" stroke-width="2.5"/>
     <text x="${(p.l+W-p.r)/2}" y="${H-4}" text-anchor="middle">Share of contracted hours actually delivered</text>
   </svg>`;
   $("chartNote").innerHTML=r.rev?`The dot is today: the consultant works exactly the contracted hours. At ${hrs(S.hours)} contracted hrs/week, the consultant can work up to <b>${hrs(r.maxH)} hrs/week</b> before this client drops below your ${pct(S.target)} target.`:"Set hours inside a tier to see the curve.";
@@ -578,10 +591,10 @@ $("addClient").addEventListener("click",()=>{S.clients.push({name:"New client",h
 armed($("clearClients"),"Click again to clear",()=>{const old=S.clients;S.clients=[];update();toast("Cleared all clients","Undo",()=>{S.clients=old;update()})});
 $("addRow").addEventListener("click",()=>{const last=S.cmp[S.cmp.length-1];S.cmp.push({hours:last?Math.min((+last.hours||0)+5,40):20,cost:"",rate:""});update();$("cmp-hours-"+(S.cmp.length-1)).focus()});
 armed($("resetRows"),"Click again to reset",()=>{S.cmp=clone(DEFAULTS.cmp);$("cmp").dataset.n="";update()});
-armed($("reset"),"Click again to reset",()=>{["hours","cost","ovh","target","util","weeks","round"].forEach(k=>S[k]=DEFAULTS[k]);S.tiers=clone(DEFAULTS.tiers);syncInputs();buildTiers();update();toast("Settings reset to defaults")});
+armed($("reset"),"Click again to reset",()=>{["hours","rateOv","cost","ovh","target","util","weeks","round"].forEach(k=>S[k]=DEFAULTS[k]);S.tiers=clone(DEFAULTS.tiers);syncInputs();buildTiers();update();toast("Settings reset to defaults")});
 
 $("copyQuote").addEventListener("click",()=>{
-  const r=calc(S.hours);
+  const r=mainCalc();
   if(!r.rev){toast("Set hours inside a tier first");return}
   const text=`Catalyst IQ Labs – Managed Workday Support\nMonthly subscription: ${usd(r.quote)}\nAnnual value: ${usd(r.quote*12)}\nBilled monthly.`;
   const done=()=>toast("Client quote copied. No hours or costs included.");
