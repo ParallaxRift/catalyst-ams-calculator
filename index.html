@@ -328,6 +328,7 @@ if(!S||!Array.isArray(S.tiers)) S=clone(DEFAULTS);
 for(const k in DEFAULTS) if(S[k]===undefined) S[k]=clone(DEFAULTS[k]);
 S.util=1; // hours delivered always equal contracted hours
 S.hours=Math.min(40,Math.max(5,+S.hours||20));
+if(S.rateOv!==""&&S.rateOv!=null) S.rateOv=Math.min(200,Math.max(75,+S.rateOv));
 if(!S.v){if(S.target===0.35)S.target=0.30;S.v=2} // one-time move from the old 35% default
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 
@@ -358,9 +359,9 @@ function calc(h,cost=S.cost,util=S.util,rateOv=""){
 /* deal settings */
 const GROUPS=[
   {title:"The deal",fields:[
-    {k:"hours",label:"Weekly contracted hours",help:"Between 5 and 40 hours per week. This picks the rate tier.",min:5,max:40,step:0.5,clamp:true,suf:"hrs",chips:[10,20,25,30,40],
+    {k:"hours",fmtLimit:v=>v+" hrs",label:"Weekly contracted hours",help:"Between 5 and 40 hours per week. This picks the rate tier.",min:5,max:40,step:0.5,clamp:true,suf:"hrs",chips:[10,20,25,30,40],
       set:v=>{const before=tierFor(S.hours);S.hours=v;if(tierFor(v)!==before)S.rateOv=""}},
-    {k:"rate",label:"Hourly client rate",help:"",min:100,max:250,step:1,pre:"$",suf:"/hr",
+    {k:"rate",label:"Hourly client rate",help:"",min:75,max:200,step:1,clamp:true,fmtLimit:v=>"$"+v,pre:"$",suf:"/hr",
       get:()=>!blank(S.rateOv)?+S.rateOv:(tierFor(S.hours)?.rate??0),
       set:v=>{const t=tierFor(S.hours);S.rateOv=(t&&v===t.rate)?"":v}}
   ]},
@@ -392,7 +393,7 @@ function buildInputs(){
     rg.addEventListener("input",()=>{setField(f,parseFloat(rg.value));syncInputs();update()});
     if(f.clamp) box.addEventListener("change",()=>{ // when you leave the box, pull the value back inside the allowed range
       const v=parseFloat(box.value), c=isNaN(v)?getField(f):Math.min(f.max,Math.max(f.min,v));
-      if(c!==v){setField(f,c);syncInputs();update();toast(`Weekly hours must be ${f.min}–${f.max}, so it's set to ${c}`)}
+      if(c!==v){setField(f,c);syncInputs();update();toast(`${f.label} must be ${f.fmtLimit(f.min)}–${f.fmtLimit(f.max)}, so it's set to ${f.fmtLimit(c)}`)}
     });
   });
   document.querySelectorAll("[data-chip]").forEach(c=>c.addEventListener("click",()=>{setField(FIELDS.find(f=>f.k===c.dataset.f),+c.dataset.chip);syncInputs();update()}));
