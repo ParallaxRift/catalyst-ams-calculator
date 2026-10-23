@@ -145,6 +145,9 @@ th:first-child,td:first-child{text-align:left}
 tr.sel td,.sticky-first tr.sel td:first-child{background:var(--sel)}
 tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px solid var(--ink);border-bottom:0;background:var(--surface-2)}
 .pl td:first-child{white-space:normal}
+.pl th:not(:first-child),.pl td:not(:first-child){width:17%}
+.pl tr.quote-row td{border-bottom:0;color:var(--muted);padding-top:14px}
+.pl td.pctcol{color:var(--muted)}
 .pl tr.sub td{font-weight:700}
 .pl tr.minus td{color:var(--muted)}
 .cell{font:600 14px var(--f-body);font-variant-numeric:tabular-nums;width:84px;text-align:right;padding:6px 8px;border-radius:6px;border:1px solid var(--input-line);background:var(--input);color:var(--ink)}
@@ -204,7 +207,6 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
 
   <nav class="tabs" role="tablist" aria-label="Views">
     <button role="tab" id="tab-calc" aria-selected="true" data-view="calc" type="button">Calculator</button>
-    <button role="tab" id="tab-pnl" aria-selected="false" data-view="pnl" type="button">Monthly P&amp;L</button>
     <button role="tab" id="tab-tiers" aria-selected="false" data-view="tiers" type="button">Tiers &amp; scenarios</button>
     <button role="tab" id="tab-portfolio" aria-selected="false" data-view="portfolio" type="button">Client portfolio</button>
   </nav>
@@ -266,12 +268,10 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
 
       </div>
     </div>
-  </section>
 
-  <section id="view-pnl" class="stack" role="tabpanel" aria-labelledby="tab-pnl" hidden>
-    <div class="card" style="max-width:760px">
-      <div class="card-head"><h2>Monthly P&amp;L</h2><button class="link" type="button" data-goto="calc">Change the deal</button></div>
-      <p class="note" id="pnlDeal" style="margin:0 0 12px"></p>
+    <div class="card pnl-card">
+      <div class="card-head"><h2>Monthly P&amp;L</h2></div>
+      <p class="note" id="pnlDeal" style="margin:0 0 14px"></p>
       <div class="scroll"><table class="pl" id="pl"></table></div>
     </div>
   </section>
@@ -448,16 +448,16 @@ function renderCalc(){
     G("Most hours you can deliver",hrs(r.maxH)+" hrs/wk","Weekly hours the consultant can work before margin falls below target.")+
     G("Overrun buffer",hrs(r.buffer)+" hrs/wk",r.buffer<0?"The client already uses more hours than you can afford.":"Extra weekly hours the client can use before you miss target.",r.rev&&r.buffer<0);
 
-  set("pnlDeal",`For the deal on the Calculator tab: ${hrs(S.hours)} hrs/week at ${usd(r.rate)}/hr (${r.custom?"custom rate":r.tier?esc(r.tier.name)+" tier":"no tier"}), ${usd(S.cost)}/hr consultant cost, ${pctT(S.target)} target margin.`);
-  const L=(a,b,cls="")=>`<tr class="${cls}"><td>${a}</td><td>${b}</td></tr>`;
-  $("pl").innerHTML=
-    L("Client revenue",usd(r.rev,2),"sub")+
-    L(`Consultant cost (${hrs(r.deliv)} hrs × ${usd(S.cost,2)})`,(r.costM?"−":"")+usd(r.costM,2),"minus")+
-    L("Gross profit",`${usd(r.gp,2)} · ${pct(r.gm)}`,"sub")+
-    L("Overhead",(r.ovhM?"−":"")+usd(r.ovhM,2),"minus")+
-    L("Contribution (what you keep)",`${usd(r.contrib,2)} · ${pct(r.margin)}`,"sub")+
-    L("Rounded subscription quote",usd(r.quote,2))+
-    L("Annual revenue / contribution",`${usd(r.rev*12)} / ${usd(r.contrib*12)}`);
+  set("pnlDeal",`For this deal: ${hrs(S.hours)} hrs/week at ${usd(r.rate)}/hr (${r.custom?"custom rate":r.tier?esc(r.tier.name)+" tier":"no tier"}), ${usd(S.cost)}/hr consultant cost, ${pctT(S.target)} target margin.`);
+  const sh=v=>r.rev?pct(v/r.rev):"–", neg=v=>(v?"−":"")+usd(v,2), negA=v=>(v?"−":"")+usd(v*12);
+  const L=(a,m,y,share,cls="")=>`<tr class="${cls}"><td>${a}</td><td>${m}</td><td>${y}</td><td class="pctcol">${share}</td></tr>`;
+  $("pl").innerHTML=`<thead><tr><th></th><th>Monthly</th><th>Annual</th><th>% of revenue</th></tr></thead><tbody>`+
+    L("Client revenue",usd(r.rev,2),usd(r.rev*12),r.rev?"100.0%":"–","sub")+
+    L(`Consultant cost <span style="color:var(--muted)">(${hrs(r.deliv)} hrs/mo × ${usd(S.cost,2)})</span>`,neg(r.costM),negA(r.costM),sh(r.costM),"minus")+
+    L("Gross profit",usd(r.gp,2),usd(r.gp*12),sh(r.gp),"sub")+
+    L("Overhead",neg(r.ovhM),negA(r.ovhM),sh(r.ovhM),"minus")+
+    L("Contribution (what you keep)",usd(r.contrib,2),usd(r.contrib*12),sh(r.contrib),"sub")+
+    L(`Client-facing quote, rounded up to the nearest ${usd(S.round)}`,usd(r.quote,2),usd(r.quote*12),"","quote-row")+`</tbody>`;
 
   drawChart(r);
 }
@@ -630,7 +630,7 @@ $("copyQuote").addEventListener("click",()=>{
   try{navigator.clipboard.writeText(text).then(done,fallback)}catch(e){fallback()}
 });
 
-const VIEWS=["calc","pnl","tiers","portfolio"];
+const VIEWS=["calc","tiers","portfolio"];
 function show(v){
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.view===v)));
   VIEWS.forEach(k=>$("view-"+k).hidden=k!==v);
