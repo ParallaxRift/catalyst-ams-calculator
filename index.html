@@ -128,7 +128,9 @@ button.rung:not(.on):hover{border-color:var(--accent)}
 .ladder-note{margin-top:10px;font-size:13.5px;color:var(--muted)}
 .link{background:none;border:0;padding:0;color:var(--accent);font:600 13px var(--f-body);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 
-.guards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.guards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:1150px){.guards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.guards{grid-template-columns:minmax(0,1fr)}}
 .guard{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--surface-2);min-width:0}
 .guard .k{font-size:12.5px;color:var(--muted);font-weight:600}
 .guard .v{font:700 21px var(--f-display);margin:3px 0 2px}
@@ -441,12 +443,17 @@ function renderCalc(){
   $("customRung").onclick=()=>{const b=$("in-rate");b.scrollIntoView({block:"center",behavior:"smooth"});b.focus({preventScroll:true});b.select()};
   set("ladderNote",r.tier?`${hrs(S.hours)} hrs/week lands in <b>${esc(r.tier.name)}</b>${r.custom?`, but you're quoting a custom ${usd(r.rate)}/hr`:""}. Bigger weekly commitments get a lower hourly rate.`:`${hrs(S.hours)} hrs/week doesn't fit any tier.`);
 
+  const CAP_HRS=40, RATE_MAX=FIELDS.find(f=>f.k==="rate").max;
+  const atCap=calc(S.hours,S.cost,S.util,RATE_MAX), breakEven=(S.cost+S.ovh)*S.util, usedHrs=S.hours*S.util;
+  const perCon=usedHrs>0?Math.floor(CAP_HRS/usedHrs+1e-9):0, spare=CAP_HRS-perCon*usedHrs, full=calc(CAP_HRS,S.cost,S.util,r.rate);
   const G=(k,v,d,bad)=>`<div class="guard ${bad?"bad":""}"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
   $("guards").innerHTML=
-    G("Lowest rate that hits target",usd(r.floor,2)+"/hr","Charge less than this and the deal misses your target.")+
-    G("Room to discount",usd(r.headroom,2)+"/hr",r.headroom<0?"You're already below the lowest rate.":"How far you could drop the rate and still hit target.",r.rev&&r.headroom<0)+
-    G("Most hours you can deliver",hrs(r.maxH)+" hrs/wk","Weekly hours the consultant can work before margin falls below target.")+
-    G("Overrun buffer",hrs(r.buffer)+" hrs/wk",r.buffer<0?"The client already uses more hours than you can afford.":"Extra weekly hours the client can use before you miss target.",r.rev&&r.buffer<0);
+    G("Lowest rate that hits target",usd(r.floor,2)+"/hr",!r.rev?"Set a rate to compare.":r.rate<r.floor-1e-9?`Today's rate is ${usd(r.floor-r.rate,2)}/hr below it.`:`Today's rate is ${usd(r.rate-r.floor,2)}/hr above it.`,r.rev&&r.rate<r.floor-1e-9)+
+    G("Highest rate allowed",usd(RATE_MAX)+"/hr",`Your rate cap. Margin at the cap: <b>${pct(atCap.margin)}</b>${r.rev?`, ${usd(RATE_MAX-r.rate,2)}/hr above today`:""}.`)+
+    G("Break-even rate",usd(breakEven,2)+"/hr","Below this rate the deal loses money.",r.rev&&r.rate<breakEven)+
+    G("Consultant capacity used",`${hrs(usedHrs)} of ${CAP_HRS} hrs/wk`,usedHrs>CAP_HRS?"More than one consultant can work in a week.":`${Math.round(usedHrs/CAP_HRS*100)}% of one consultant's week. ${hrs(CAP_HRS-usedHrs)} hrs/wk left for other clients.`,usedHrs>CAP_HRS)+
+    G("Clients this size per consultant",String(perCon),perCon<1?"This client needs more than one consultant.":spare>0.05?`${perCon} × ${hrs(usedHrs)} hrs = ${hrs(perCon*usedHrs)} hrs/wk, with ${hrs(spare)} hrs/wk spare.`:`Fills the ${CAP_HRS}-hour week exactly.`,perCon<1)+
+    G("One fully booked consultant",usd(full.rev)+"/mo",`${CAP_HRS} hrs/wk at ${usd(r.rate)}/hr. You keep ${usd(full.contrib)}/mo (${pct(full.margin)}).`);
 
   set("pnlDeal",`For this deal: ${hrs(S.hours)} hrs/week at ${usd(r.rate)}/hr (${r.custom?"custom rate":r.tier?esc(r.tier.name)+" tier":"no tier"}), ${usd(S.cost)}/hr consultant cost, ${pctT(S.target)} target margin.`);
   const sh=v=>r.rev?pct(v/r.rev):"–", neg=v=>(v?"−":"")+usd(v,2), negA=v=>(v?"−":"")+usd(v*12);
@@ -463,14 +470,14 @@ function renderCalc(){
 }
 
 function drawChart(r){
-  const W=640,H=250,p={l:44,r:14,t:16,b:44}, xs=[0.5,1.75], pts=[];
+  const W=640,H=250,p={l:44,r:14,t:16,b:44}, xs=[0.5,Math.max(1,Math.min(1.75,40/(S.hours||1)))], pts=[];
   for(let u=xs[0];u<=xs[1]+1e-9;u+=0.05) pts.push([u,mainCalc(u).margin]);
   let y0=Math.min(...pts.map(q=>q[1]),S.target,0), y1=Math.max(...pts.map(q=>q[1]),S.target);
   y0=Math.floor(y0*10)/10; y1=Math.ceil(y1*10)/10; if(y1<=y0) y1=y0+0.1;
   const X=u=>p.l+(u-xs[0])/(xs[1]-xs[0])*(W-p.l-p.r), Y=m=>p.t+(1-(m-y0)/(y1-y0))*(H-p.t-p.b);
   let g="";
   for(let m=y0;m<=y1+1e-9;m+=0.1) g+=`<line x1="${p.l}" x2="${W-p.r}" y1="${Y(m)}" y2="${Y(m)}" stroke="var(--grid)"/><text x="${p.l-8}" y="${Y(m)+4}" text-anchor="end">${Math.round(m*100)}%</text>`;
-  [0.5,0.75,1,1.25,1.5,1.75].forEach(u=>g+=`<text x="${X(u)}" y="${H-p.b+18}" text-anchor="middle">${Math.round(u*100)}%</text>`);
+  [0.5,0.75,1,1.25,1.5,1.75].filter(u=>u<=xs[1]+1e-9).forEach(u=>g+=`<text x="${X(u)}" y="${H-p.b+18}" text-anchor="middle">${Math.round(u*100)}%</text>`);
   const line=pts.map((q,i)=>(i?"L":"M")+X(q[0]).toFixed(1)+","+Y(q[1]).toFixed(1)).join("");
   const be=S.hours&&r.rev?r.maxH/S.hours:0, beX=Math.min(Math.max(be,xs[0]),xs[1]);
   const okZone=r.rev&&be>xs[0]?`<rect x="${p.l}" y="${p.t}" width="${X(beX)-p.l}" height="${H-p.t-p.b}" fill="var(--keep)" opacity=".08"/>`:"";
@@ -485,7 +492,12 @@ function drawChart(r){
     <circle cx="${X(cu)}" cy="${Y(mainCalc(cu).margin)}" r="6" fill="var(--navy-2)" stroke="var(--surface)" stroke-width="2.5"/>
     <text x="${(p.l+W-p.r)/2}" y="${H-4}" text-anchor="middle">Share of contracted hours actually delivered</text>
   </svg>`;
-  $("chartNote").innerHTML=r.rev?`The dot is today: the consultant works exactly the contracted hours. At ${hrs(S.hours)} contracted hrs/week, the consultant can work up to <b>${hrs(r.maxH)} hrs/week</b> before this client drops below your ${pctT(S.target)} target.`:"Set hours inside a tier to see the curve.";
+  $("chartNote").innerHTML=!r.rev?"Set hours inside a tier to see the curve.":
+    `The dot is today: exactly the contracted hours. `+
+    (xs[1]<1.75-1e-9?`The chart stops at 40 hrs/week, the most a consultant can work. `:"")+
+    (r.margin<S.target-1e-9?`<b>This deal is already below your ${pctT(S.target)} target</b>, even at the contracted hours.`
+      :r.maxH>=40?`Even at a full 40 hrs/week, this client stays at or above your ${pctT(S.target)} target.`
+      :`The client can use up to <b>${hrs(r.maxH)} hrs/week</b> before you drop below your ${pctT(S.target)} target.`);
 }
 
 /* tiers */
