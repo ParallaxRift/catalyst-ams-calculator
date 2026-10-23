@@ -327,6 +327,7 @@ let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 if(!S||!Array.isArray(S.tiers)) S=clone(DEFAULTS);
 for(const k in DEFAULTS) if(S[k]===undefined) S[k]=clone(DEFAULTS[k]);
 S.util=1; // hours delivered always equal contracted hours
+S.target=DEFAULTS.target; // always open at the default 30% target
 S.hours=Math.min(40,Math.max(5,+S.hours||20));
 if(S.rateOv!==""&&S.rateOv!=null) S.rateOv=Math.min(200,Math.max(75,+S.rateOv));
 if(!S.v){if(S.target===0.35)S.target=0.30;S.v=2} // one-time move from the old 35% default
