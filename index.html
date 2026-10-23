@@ -245,11 +245,6 @@ tr.total td,.sticky-first tr.total td:first-child{font-weight:700;border-top:2px
       <div class="mark" aria-hidden="true">CIQ</div>
       <div><h1>AMS Margin Calculator</h1><p>Catalyst IQ Labs · Managed Workday Support pricing</p></div>
     </div>
-    <div class="actions">
-      <button class="btn primary" id="copyQuote" type="button">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
-        Copy client quote</button>
-    </div>
   </header>
 
   <nav class="tabs" role="tablist" aria-label="Views">
@@ -723,14 +718,6 @@ $("addRow").addEventListener("click",()=>{const last=S.cmp[S.cmp.length-1];S.cmp
 armed($("resetRows"),"Click again to reset",()=>{S.cmp=clone(DEFAULTS.cmp);$("cmp").dataset.n="";update()});
 armed($("reset"),"Click again to reset",()=>{["hours","rateOv","cost","ovh","target","util","weeks","round"].forEach(k=>S[k]=DEFAULTS[k]);S.tiers=clone(DEFAULTS.tiers);syncInputs();buildTiers();update();toast("Settings reset to defaults")});
 
-$("copyQuote").addEventListener("click",()=>{
-  const r=mainCalc();
-  if(!r.rev){toast("Set hours inside a tier first");return}
-  const text=`Catalyst IQ Labs – Managed Workday Support\nMonthly subscription: ${usd(r.quote)}\nAnnual value: ${usd(r.quote*12)}\nBilled monthly.`;
-  const done=()=>toast("Client quote copied. No hours or costs included.");
-  const fallback=()=>{const ta=document.createElement("textarea");ta.value=text;document.body.appendChild(ta);ta.select();let ok=false;try{ok=document.execCommand("copy")}catch(e){}ta.remove();ok?done():toast(`Copy this: ${usd(r.quote)}/mo, ${usd(r.quote*12)}/yr`)};
-  try{navigator.clipboard.writeText(text).then(done,fallback)}catch(e){fallback()}
-});
 
 /* ---------- market data: researched snapshot (Oct 22, 2026), editable and saved in this browser ---------- */
 const MKT_DEFAULT={
