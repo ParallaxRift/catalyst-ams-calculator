@@ -316,6 +316,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 if(!S||!Array.isArray(S.tiers)) S=clone(DEFAULTS);
 for(const k in DEFAULTS) if(S[k]===undefined) S[k]=clone(DEFAULTS[k]);
+S.util=1; // hours delivered always equal contracted hours
 if(!S.v){if(S.target===0.35)S.target=0.30;S.v=2} // one-time move from the old 35% default
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 
@@ -345,8 +346,7 @@ function calc(h,cost=S.cost,util=S.util,rateOv=""){
 /* deal settings */
 const GROUPS=[
   {title:"The deal",fields:[
-    {k:"hours",label:"Weekly contracted hours",help:"Hours per week the subscription covers. This picks the rate tier.",min:0,max:45,step:0.5,suf:"hrs",chips:[10,20,25,30,40]},
-    {k:"util",label:"Hours actually delivered",help:"100% = exactly what they pay for. Try 110% for a client who runs over.",min:0.5,max:1.5,step:0.05,pct:true,suf:"%"}
+    {k:"hours",label:"Weekly contracted hours",help:"Hours per week the subscription covers. This picks the rate tier.",min:0,max:45,step:0.5,suf:"hrs",chips:[10,20,25,30,40]}
   ]},
   {title:"Your costs",fields:[
     {k:"cost",label:"1099 consultant cost",help:"What you pay the contractor per hour worked.",min:50,max:200,step:1,pre:"$",suf:"/hr"},
@@ -444,7 +444,7 @@ function drawChart(r){
     <circle cx="${X(cu)}" cy="${Y(calc(S.hours,S.cost,cu).margin)}" r="6" fill="var(--navy-2)" stroke="var(--surface)" stroke-width="2.5"/>
     <text x="${(p.l+W-p.r)/2}" y="${H-4}" text-anchor="middle">Share of contracted hours actually delivered</text>
   </svg>`;
-  $("chartNote").innerHTML=r.rev?`The dot is your current setting. At ${hrs(S.hours)} contracted hrs/week, the consultant can work up to <b>${hrs(r.maxH)} hrs/week</b> before this client drops below your ${pct(S.target)} target.`:"Set hours inside a tier to see the curve.";
+  $("chartNote").innerHTML=r.rev?`The dot is today: the consultant works exactly the contracted hours. At ${hrs(S.hours)} contracted hrs/week, the consultant can work up to <b>${hrs(r.maxH)} hrs/week</b> before this client drops below your ${pct(S.target)} target.`:"Set hours inside a tier to see the curve.";
 }
 
 /* tiers */
